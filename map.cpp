@@ -49,7 +49,7 @@ static int S(cmp) (const void * v1, const void * v2) {
     segfault();
 }
 
-map::data * mk (int (*cmp)(const void *, const void *)) {
+map::data * mk_e (enum del_policy o[2], int (*cmp)(const void *, const void *)) {
   size_t mem_block_size = sizeof(struct S(header));
   struct S(header) * m = (struct S(header) *)malloc(mem_block_size);
   m->context = NULL;
@@ -62,10 +62,17 @@ map::data * mk (int (*cmp)(const void *, const void *)) {
   m->cs.cmp = 0;
   m->cs.cmp_stop_at_null = 0;
   m->cs.n_product = 2; // key, value
+  m->key_del_policy = o[0];
+  m->val_del_policy = o[1];
   m->_[0] = 0;
   return (map::data *)m->_;
 }
 
+map::data * mk(int (*cmp) (const void *, const void *)) {
+  static enum del_policy d[2] = { CEE_DEFAULT_DEL_POLICY, CEE_DEFAULT_DEL_POLICY };
+  return mk_e(d, cmp);
+}
+    
 uintptr_t size(struct map::data * m) {
   struct S(header) * b = FIND_HEADER(m);
   return b->size;
@@ -75,7 +82,12 @@ void add(map::data * m, void * key, void * value) {
   struct S(header) * b = FIND_HEADER(m);
   struct S(pair) * triple = (struct S(pair) *) malloc(sizeof(struct S(pair)));
   triple->h = b;
-  triple->value = tuple::mk(key, value);
+  
+  enum del_policy d[2];
+  d[0] = b->key_del_policy;
+  d[1] = b->val_del_policy;
+  
+  triple->value = tuple::mk_e(d, key, value);
   struct S(pair) ** oldp = (struct S(pair) **)tsearch(triple, b->_, S(cmp));
   if (oldp == NULL)
     segfault(); // run out of memory

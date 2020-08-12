@@ -94,7 +94,7 @@ void add(set::data *m, void * val) {
   void ** c = (void **)malloc(sizeof(void *) * 2);
   c[0] = val;
   c[1] = h;
-  void *** oldp = (void ***)tsearch(c, h->_, S(cmp));
+  void *** oldp = (void ***) tsearch(c, h->_, S(cmp));
   
   if (oldp == NULL)
     segfault();
@@ -108,7 +108,7 @@ void add(set::data *m, void * val) {
 }
 
 static void S(noop)(void *p) {}
-void cee_set_clear (struct cee_set * s) {
+void cee_set_clear (set::data * s) {
   struct S(header) * h = FIND_HEADER (s);
   switch(h->del_policy) {
     case dp_del_rc:
@@ -146,7 +146,7 @@ static void S(get_value) (const void *nodep, const VISIT which, const int depth)
     case leaf:
       p = (S(pair) *)*(void **)nodep;
       h = p->h;
-      h->context = vect::append((struct vect::data *) h->context, p->value);
+      h->context = vect::append((vect::data *) h->context, p->value);
       break;
     default:
       break;

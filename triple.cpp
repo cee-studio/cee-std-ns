@@ -46,9 +46,9 @@ triple::data * mk_e (enum del_policy o[3], void * v1, void * v2, void * v3) {
 }
 
 triple::data * mk (void * v1, void * v2, void *v3) {
-  enum del_policy o[3] = { CEE_DEFAULT_DEL_POLICY, 
-                          CEE_DEFAULT_DEL_POLICY, 
-                          CEE_DEFAULT_DEL_POLICY };
+  static enum del_policy o[3] = { CEE_DEFAULT_DEL_POLICY, 
+                                 CEE_DEFAULT_DEL_POLICY, 
+                                 CEE_DEFAULT_DEL_POLICY };
   return mk_e(o, v1, v2, v3);
 }
     

@@ -47,7 +47,7 @@ vect::data * mk_e (enum del_policy o, size_t cap) {
 }
 
 vect::data * mk (size_t cap) {
-  return mk_e(dp_del_rc, cap);
+  return mk_e(CEE_DEFAULT_DEL_POLICY, cap);
 }
 
 vect::data * append (vect::data * v, void *e) {

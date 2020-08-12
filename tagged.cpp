@@ -13,7 +13,6 @@
 namespace cee {
   namespace tagged {
     
-
 struct S(header) {
   enum del_policy del_policy;
   struct sect cs;

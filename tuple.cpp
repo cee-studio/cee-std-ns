@@ -46,7 +46,8 @@ tuple::data * mk_e (enum del_policy o[2], void * v1, void * v2) {
 }
 
 tuple::data * mk (void * v1, void * v2) {
-  enum del_policy o[2] = { CEE_DEFAULT_DEL_POLICY, CEE_DEFAULT_DEL_POLICY };
+  static enum del_policy o[2] = { CEE_DEFAULT_DEL_POLICY, 
+                                 CEE_DEFAULT_DEL_POLICY };
   return mk_e(o, v1, v2);
 }
     

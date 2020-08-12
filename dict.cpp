@@ -14,7 +14,7 @@
 #include "cee-header.h"
 
 namespace cee {
-namespace dict {
+  namespace dict {
 
 struct S(header) {
   struct vect::data * keys;

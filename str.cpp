@@ -19,7 +19,6 @@
 namespace cee {
   namespace str {
     
-
 struct S(header) {
   uintptr_t capacity;
   struct sect cs;
@@ -39,19 +38,19 @@ str::data * mk (const char * fmt, ...) {
     // intentionally cause a segfault
     segfault();
   }
-  
+
   uintptr_t s;
   va_list ap;
-  
+
   va_start(ap, fmt);
   s = vsnprintf(NULL, 0, fmt, ap);
   s ++;
-  
+
   s += sizeof(struct S(header));
   s = (s / CEE_BLOCK + 1) * CEE_BLOCK;
   size_t mem_block_size = s;
   struct S(header) * h = (struct S(header) *)malloc(mem_block_size);
-  
+
   ZERO_CEE_SECT(&h->cs);
   h->cs.del = S(del);
   h->cs.resize_method = resize_with_malloc;
@@ -60,7 +59,7 @@ str::data * mk (const char * fmt, ...) {
   h->cs.cmp_stop_at_null = 1;
   h->cs.n_product = 0;
   h->capacity = s - sizeof(struct S(header));
-  
+
   va_start(ap, fmt);
   vsnprintf(h->_, s, fmt, ap);
   return (str::data *)(h->_);
@@ -69,7 +68,7 @@ str::data * mk (const char * fmt, ...) {
 str::data * mk_e (size_t n, const char * fmt, ...) {
   uintptr_t s;
   va_list ap;
-  
+
   if (fmt) {
     va_start(ap, fmt);
     s = vsnprintf(NULL, 0, fmt, ap);
@@ -77,11 +76,11 @@ str::data * mk_e (size_t n, const char * fmt, ...) {
   }
   else
     s = n;
-  
+
   s += sizeof(struct S(header));
   size_t mem_block_size = (s / CEE_BLOCK + 1) * CEE_BLOCK;
   struct S(header) * m = (struct S(header) *) malloc(mem_block_size);
-  
+
   ZERO_CEE_SECT(&m->cs);
   m->cs.del = S(del);
   m->cs.resize_method = resize_with_malloc;
@@ -122,7 +121,7 @@ char * end(str::data * str) {
   for (i = 0;i < b->used; i++)
     if (b->_[i] == '\0')
       return (b->_ + i);
-  
+
   return NULL;
   */
 }
@@ -151,14 +150,14 @@ str::data * catf(str::data * str, const char * fmt, ...) {
   struct S(header) * b = FIND_HEADER(str);
   if (!fmt)
     return str;
-  
+
   size_t slen = strlen((char *)str);
-  
+
   va_list ap;
   va_start(ap, fmt);
   size_t s = vsnprintf(NULL, 0, fmt, ap);
   s ++; // including the null terminator
-  
+
   va_start(ap, fmt);
   if (slen + s < b->capacity) {
     vsnprintf(b->_ + slen, s, fmt, ap);
@@ -174,6 +173,7 @@ str::data * catf(str::data * str, const char * fmt, ...) {
 str::data * ncat (str::data * str, char * s, size_t slen) {
   return NULL;
 }
+    
     
   }
 }
