@@ -2,6 +2,8 @@ CEE_SRC=cee-common.cpp boxed.cpp str.cpp dict.cpp map.cpp set.cpp stack.cpp \
   tuple.cpp triple.cpp quadruple.cpp vect.cpp tagged.cpp singleton.cpp \
   closure.cpp block.cpp n_tuple.cpp
 
+CXXFLAGS= -fno-rtti -fno-exceptions -g
+
 HEADERS=stdio.h string.h stdlib.h stdarg.h search.h assert.h errno.h
 
 define cee_amalgamation
@@ -14,7 +16,7 @@ define cee_amalgamation
 	@cat cee.hpp >> $(1)
 	@echo " " >> $(1)
 	@cat cee-internal.h >> $(1)
-	$(CXX) -E $(2) -nostdinc tmp.cpp >> $(1)
+	$(CXX) -E -CC $(2) -nostdinc tmp.cpp >> $(1)
 	@echo "#endif" >> $(1)
 endef
 
@@ -26,7 +28,7 @@ cee-one.cpp: $(CEE_SRC)
 	$(call cee_amalgamation, cee-one.cpp)
 
 cee-one.o: cee-one.cpp
-	$(CXX) -c -g cee-one.cpp
+	$(CXX) -c $(CXXFLAGS) cee-one.cpp
 
 
 release:
@@ -35,7 +37,7 @@ release:
 	@cp cee.hpp  release
 
 tester: cee-one.o
-	$(CXX) -static -g tester.cpp cee-one.o
+	$(CXX) -static $(CXXFLAGS) tester.cpp cee-one.o
 
 clean:
 	rm -f cee.cpp tmp.cpp cee-one.* a.out

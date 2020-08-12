@@ -187,7 +187,6 @@ namespace str {
 };
   
 namespace vect {
-
   struct data {
     void * _[1]; // an array of `void *`s
   };
@@ -421,20 +420,20 @@ namespace singleton {
 }
   
   
-enum primitive_type {
-  primitive_f64 = 1,
-  primitive_f32,
-  primitive_u64,
-  primitive_u32,
-  primitive_u16,
-  primitive_u8,
-  primitive_i64,
-  primitive_i32,
-  primitive_i16,
-  primitive_i8
-};
-
-union primitive_value {
+namespace boxed {
+  enum primitive_type {
+    primitive_f64 = 1,
+    primitive_f32,
+    primitive_u64,
+    primitive_u32,
+    primitive_u16,
+    primitive_u8,
+    primitive_i64,
+    primitive_i32,
+    primitive_i16,
+    primitive_i8
+  };
+  union primitive_value {
     double   f64;
     float    f32;
     uint64_t u64;
@@ -445,9 +444,8 @@ union primitive_value {
     int32_t  i32;
     int16_t  i16;
     int8_t   i8;
-};
+  };
 
-namespace boxed {
   /*
    * boxed primitive value
    */
@@ -486,38 +484,43 @@ namespace boxed {
    */
   extern size_t snprint(char * buf, size_t size, boxed::data *p);
 };
-
-union ptr {
-  void * _;
-  str::data       * str;
-  set::data       * set;
-  vect::data      * vect;
-  map::data       * map;
-  dict::data      * dict;
-  tuple::data     * tuple;
-  triple::data    * triple;
-  quadruple::data * quadruple;
-  block::data     * block;
-  boxed::data     * boxed;
-  singleton::data * singleton;
-  stack::data     * stack;
-};
   
 namespace tagged {
-/*
- * tagged value is useful to construct tagged union
- */
-struct data {
-  tag_t tag;
-  union ptr ptr;
-};
+  struct data;
+  
+  union ptr {
+    void * _;
+    str::data       * str;
+    set::data       * set;
+    vect::data      * vect;
+    map::data       * map;
+    dict::data      * dict;
+    tuple::data     * tuple;
+    triple::data    * triple;
+    quadruple::data * quadruple;
+    block::data     * block;
+    boxed::data     * boxed;
+    singleton::data * singleton;
+    stack::data     * stack;
+    tagged::data    * tagged;
+  };
+  
+  
+  /*
+   * the generic tagged value is useful to construct tagged union
+   * runtime checking is needed. 
+   */
+  struct data {
+    tag_t tag;
+    union ptr ptr;
+  };
 
-/*
- * tag: any integer value
- * v: a value 
- */
-extern tagged::data * mk (uintptr_t tag, void * v);
-extern tagged::data * mk_e (enum del_policy o, uintptr_t tag, void *v);
+  /*
+   * tag: any integer value
+   * v: a pointer
+   */
+  extern tagged::data * mk (uintptr_t tag, void * v);
+  extern tagged::data * mk_e (enum del_policy o, uintptr_t tag, void *v);
 }
 
 namespace closure {
@@ -558,6 +561,9 @@ extern void segfault() __attribute__((noreturn));
 
 #endif // CEE_INTERNAL_H
 using namespace cee;
+/*
+ * a generic resource delete function for all cee_* pointers
+ */
 void cee::del(void *p) {
   if (!p) cee::segfault();
   struct sect * cs = (struct sect *)((void *)((char *)p - sizeof(struct cee::sect)));
@@ -567,6 +573,9 @@ void cee::del_ref(void *p) {
   if (!p) cee::segfault();
   struct sect * cs = (struct sect *)((void *)((char *)p - sizeof(struct cee::sect)));
   if (cs->in_degree) cs->in_degree --;
+  /* if it's retained by an owner,
+     it should be freed by cee_del
+  */
   if (cs->retained) return;
   if (!cs->in_degree) cs->del(p);
 }
@@ -596,6 +605,7 @@ static void _cee_common_decr_rc (void * p) {
   if (cs->in_degree)
     cs->in_degree --;
   else {
+    // report warnings
   }
 }
 uint16_t get_in_degree (void * p) {
@@ -611,6 +621,7 @@ static void _cee_common_release (void * p) {
   if(cs->retained)
     cs->retained = 0;
   else {
+    // report error
     cee::segfault();
   }
 }
@@ -972,6 +983,8 @@ static void _cee_str_del (void * p) {
 }
 str::data * mk (const char * fmt, ...) {
   if (!fmt) {
+    // fmt cannot be null
+    // intentionally cause a segfault
     segfault();
   }
   uintptr_t s;
@@ -1001,7 +1014,7 @@ str::data * mk_e (size_t n, const char * fmt, ...) {
   if (fmt) {
     va_start(ap, fmt);
     s = vsnprintf(NULL, 0, fmt, ap);
-    s ++;
+    s ++; // including the null terminator
   }
   else
     s = n;
@@ -1020,7 +1033,7 @@ str::data * mk_e (size_t n, const char * fmt, ...) {
     vsnprintf(m->_, mem_block_size, fmt, ap);
   }
   else {
-    m->_[0] = '\0';
+    m->_[0] = '\0'; // terminates with '\0'
   }
   return (str::data *)(m->_);
 }
@@ -1034,10 +1047,25 @@ struct cee_block * cee_block_empty () {
   singleton._[0] = 0;
   return (struct cee_block *)&singleton._;
 }
+/*
+ * if it's not NULL terminated, NULL should be returned
+ */
 char * end(str::data * str) {
   struct _cee_str_header * b = (struct _cee_str_header *)((void *)((char *)(str) - (__builtin_offsetof(struct _cee_str_header, _))));
+  // TODO: fixes this
   return (char *)str + strlen((char *)str);
+  /*
+  int i = 0; 
+  for (i = 0;i < b->used; i++)
+    if (b->_[i] == '\0')
+      return (b->_ + i);
+  
+  return NULL;
+  */
 }
+/*
+ * append any char (including '\0') to str;
+ */
 str::data * add(str::data * str, char c) {
   struct _cee_str_header * b = (struct _cee_str_header *)((void *)((char *)(str) - (__builtin_offsetof(struct _cee_str_header, _))));
   uint32_t slen = strlen((char *)str);
@@ -1062,7 +1090,7 @@ str::data * catf(str::data * str, const char * fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   size_t s = vsnprintf(NULL, 0, fmt, ap);
-  s ++;
+  s ++; // including the null terminator
   va_start(ap, fmt);
   if (slen + s < b->capacity) {
     vsnprintf(b->_ + slen, s, fmt, ap);
@@ -1109,7 +1137,7 @@ dict::data * mk_e (enum del_policy o, size_t size) {
   m->cs.del = _cee_dict_del;
   m->cs.mem_block_size = mem_block_size;
   m->cs.resize_method = resize_with_identity;
-  m->cs.n_product = 2;
+  m->cs.n_product = 2; // key:str, value
   size_t hsize = (size_t)((float)size * 1.25);
   memset(m->_, 0, sizeof(struct hsearch_data));
   if (hcreate_r(hsize, m->_))
@@ -1191,7 +1219,7 @@ map::data * mk (int (*cmp)(const void *, const void *)) {
   m->cs.mem_block_size = mem_block_size;
   m->cs.cmp = 0;
   m->cs.cmp_stop_at_null = 0;
-  m->cs.n_product = 2;
+  m->cs.n_product = 2; // key, value
   m->_[0] = 0;
   return (map::data *)m->_;
 }
@@ -1206,7 +1234,7 @@ void add(map::data * m, void * key, void * value) {
   triple->value = tuple::mk(key, value);
   struct _cee_map_pair ** oldp = (struct _cee_map_pair **)tsearch(triple, b->_, _cee_map_cmp);
   if (oldp == NULL)
-    segfault();
+    segfault(); // run out of memory
   else if (*oldp != triple)
     _cee_map_free_pair(triple);
   else
@@ -1324,6 +1352,11 @@ static int _cee_set_cmp (const void * v1, const void * v2) {
   else
     segfault();
 }
+/*
+ * create a new set and the equality of 
+ * its two elements are decided by cmp
+ * dt: specify how its elements should be handled if the set is deleted.
+ */
 set::data * mk_e (enum del_policy o, int (*cmp)(const void *, const void *))
 {
   struct _cee_set_header * m = (struct _cee_set_header *)malloc(sizeof(struct _cee_set_header));
@@ -1349,6 +1382,10 @@ bool empty (set::data * s) {
   struct _cee_set_header * h = (struct _cee_set_header *)((void *)((char *)(s) - (__builtin_offsetof(struct _cee_set_header, _))));
   return h->size == 0;
 }
+/*
+ * add an element key to the set m
+ * 
+ */
 void add(set::data *m, void * val) {
   struct _cee_set_header * h = (struct _cee_set_header *)((void *)((char *)(m) - (__builtin_offsetof(struct _cee_set_header, _))));
   void ** c = (void **)malloc(sizeof(void *) * 2);
@@ -1505,6 +1542,10 @@ void * pop (stack::data * v) {
     return p;
   }
 }
+/*
+ *  nth: 0 -> the topest element
+ *       1 -> 1 element way from the topest element
+ */
 void * top (stack::data * v, uintptr_t nth) {
   struct _cee_stack_header * b = (struct _cee_stack_header *)((void *)((char *)(v) - (__builtin_offsetof(struct _cee_stack_header, _))));
   if (b->used == 0 || nth >= b->used)
@@ -1516,6 +1557,12 @@ uintptr_t size (stack::data *x) {
   struct _cee_stack_header * m = (struct _cee_stack_header *)((void *)((char *)((void **)x) - (__builtin_offsetof(struct _cee_stack_header, _))));
   return m->used;
 }
+/*
+uintptr_t stack::capacity (stack::data *s) {
+  struct S(header) * m = FIND_HEADER(s);
+  return m->capacity;
+}
+*/
 bool empty (stack::data *x) {
   struct _cee_stack_header * b = (struct _cee_stack_header *)((void *)((char *)(x) - (__builtin_offsetof(struct _cee_stack_header, _))));
   return b->used == 0;
@@ -1777,10 +1824,17 @@ namespace cee {
   namespace singleton {
 struct _cee_singleton_header {
   struct sect cs;
-  uintptr_t _;
+  uintptr_t _; // tag
   uintptr_t val;
 };
+/*
+ * singleton should never be deleted, hence we pass a noop
+ */
 static void _cee_singleton_noop(void *p) {}
+/*
+ * the parameter of this function has to be a global/static 
+ * uintptr_t array of two elements
+ */
 singleton::data * init(uintptr_t tag, void *s) {
   struct _cee_singleton_header * b = (struct _cee_singleton_header *)s;
   do{ memset(&b->cs, 0, sizeof(struct cee::sect)); } while(0);;
@@ -1816,15 +1870,15 @@ struct data * mk (void * context, void * data, void * fun) {
   b->_.fun = fun;
   return &(b->_);
 }
-}
-}
+} // namespace closure
+} // namespace cee
 namespace cee {
   namespace block {
 struct _cee_block_header {
   uintptr_t capacity;
   enum del_policy del_policy;
   struct sect cs;
-  char _[1];
+  char _[1]; // actual data
 };
 static struct _cee_block_header * _cee_block_resize(struct _cee_block_header * h, size_t s)
 {

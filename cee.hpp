@@ -476,6 +476,8 @@ namespace boxed {
 };
   
 namespace tagged {
+  struct data;
+  
   union ptr {
     void * _;
     str::data       * str;
@@ -490,10 +492,13 @@ namespace tagged {
     boxed::data     * boxed;
     singleton::data * singleton;
     stack::data     * stack;
+    tagged::data    * tagged;
   };
   
+  
   /*
-   * tagged value is useful to construct tagged union
+   * the generic tagged value is useful to construct tagged union
+   * runtime checking is needed. 
    */
   struct data {
     tag_t tag;
@@ -502,7 +507,7 @@ namespace tagged {
 
   /*
    * tag: any integer value
-   * v: a value 
+   * v: a pointer
    */
   extern tagged::data * mk (uintptr_t tag, void * v);
   extern tagged::data * mk_e (enum del_policy o, uintptr_t tag, void *v);
