@@ -437,7 +437,7 @@ union primitive_value {
     int8_t   i8;
 };
 
-namespace box {
+namespace boxed {
   /*
    * boxed primitive value
    */
@@ -445,35 +445,36 @@ namespace box {
     union primitive_value _;
   };
 
-  extern box::data * from_double(double);
-  extern box::data * from_float(float);
+  extern boxed::data * from_double(double);
+  extern boxed::data * from_float(float);
 
-  extern box::data * from_u64(uint64_t);
-  extern box::data * from_u32(uint32_t);
-  extern box::data * from_u16(uint16_t);
-  extern box::data * from_u8(uint8_t);
+  extern boxed::data * from_u64(uint64_t);
+  extern boxed::data * from_u32(uint32_t);
+  extern boxed::data * from_u16(uint16_t);
+  extern boxed::data * from_u8(uint8_t);
 
-  extern box::data * from_i64(int64_t);
-  extern box::data * from_i32(int32_t);
-  extern box::data * from_i16(int16_t);
-  extern box::data * from_i8(int8_t);
+  extern boxed::data * from_i64(int64_t);
+  extern boxed::data * from_i32(int32_t);
+  extern boxed::data * from_i16(int16_t);
+  extern boxed::data * from_i8(int8_t);
 
-  extern double as_double(box::data * x);
-  extern float as_float(box::data * x);
-  extern uint64_t as_u64(box::data * x);
-  extern uint32_t as_u32(box::data * x);
-  extern uint16_t as_u16(box::data * x);
-  extern uint8_t  as_u8(box::data * x);
+  extern double   to_double(boxed::data * x);
+  extern float    to_float(boxed::data * x);
+  
+  extern uint64_t to_u64(boxed::data * x);
+  extern uint32_t to_u32(boxed::data * x);
+  extern uint16_t to_u16(boxed::data * x);
+  extern uint8_t  to_u8(boxed::data * x);
 
-  extern int64_t as_i64(box::data * x);
-  extern int32_t as_i32(box::data * x);
-  extern int16_t as_i16(box::data * x);
-  extern int8_t  as_i8(box::data * x);
+  extern int64_t  to_i64(boxed::data * x);
+  extern int32_t  to_i32(boxed::data * x);
+  extern int16_t  to_i16(boxed::data * x);
+  extern int8_t   to_i8(boxed::data * x);
 
   /*
    * number of bytes needed to print out the value
    */
-  extern size_t snprint(char * buf, size_t size, box::data *p);
+  extern size_t snprint(char * buf, size_t size, boxed::data *p);
 };
 
 union ptr {
@@ -487,7 +488,7 @@ union ptr {
   triple::data    * triple;
   quadruple::data * quadruple;
   block::data     * block;
-  box::data       * box;
+  boxed::data     * boxed;
   singleton::data * singleton;
   stack::data     * stack;
 };
