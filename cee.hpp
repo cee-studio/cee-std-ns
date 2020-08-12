@@ -177,7 +177,6 @@ namespace str {
 };
   
 namespace vect {
-
   struct data {
     void * _[1]; // an array of `void *`s
   };
@@ -411,20 +410,20 @@ namespace singleton {
 }
   
   
-enum primitive_type {
-  primitive_f64 = 1,
-  primitive_f32,
-  primitive_u64,
-  primitive_u32,
-  primitive_u16,
-  primitive_u8,
-  primitive_i64,
-  primitive_i32,
-  primitive_i16,
-  primitive_i8
-};
-
-union primitive_value {
+namespace boxed {
+  enum primitive_type {
+    primitive_f64 = 1,
+    primitive_f32,
+    primitive_u64,
+    primitive_u32,
+    primitive_u16,
+    primitive_u8,
+    primitive_i64,
+    primitive_i32,
+    primitive_i16,
+    primitive_i8
+  };
+  union primitive_value {
     double   f64;
     float    f32;
     uint64_t u64;
@@ -435,9 +434,8 @@ union primitive_value {
     int32_t  i32;
     int16_t  i16;
     int8_t   i8;
-};
+  };
 
-namespace boxed {
   /*
    * boxed primitive value
    */
@@ -476,38 +474,38 @@ namespace boxed {
    */
   extern size_t snprint(char * buf, size_t size, boxed::data *p);
 };
-
-union ptr {
-  void * _;
-  str::data       * str;
-  set::data       * set;
-  vect::data      * vect;
-  map::data       * map;
-  dict::data      * dict;
-  tuple::data     * tuple;
-  triple::data    * triple;
-  quadruple::data * quadruple;
-  block::data     * block;
-  boxed::data     * boxed;
-  singleton::data * singleton;
-  stack::data     * stack;
-};
   
 namespace tagged {
-/*
- * tagged value is useful to construct tagged union
- */
-struct data {
-  tag_t tag;
-  union ptr ptr;
-};
+  union ptr {
+    void * _;
+    str::data       * str;
+    set::data       * set;
+    vect::data      * vect;
+    map::data       * map;
+    dict::data      * dict;
+    tuple::data     * tuple;
+    triple::data    * triple;
+    quadruple::data * quadruple;
+    block::data     * block;
+    boxed::data     * boxed;
+    singleton::data * singleton;
+    stack::data     * stack;
+  };
+  
+  /*
+   * tagged value is useful to construct tagged union
+   */
+  struct data {
+    tag_t tag;
+    union ptr ptr;
+  };
 
-/*
- * tag: any integer value
- * v: a value 
- */
-extern tagged::data * mk (uintptr_t tag, void * v);
-extern tagged::data * mk_e (enum del_policy o, uintptr_t tag, void *v);
+  /*
+   * tag: any integer value
+   * v: a value 
+   */
+  extern tagged::data * mk (uintptr_t tag, void * v);
+  extern tagged::data * mk_e (enum del_policy o, uintptr_t tag, void *v);
 }
 
 namespace closure {
