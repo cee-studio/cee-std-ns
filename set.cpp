@@ -3,7 +3,7 @@
 #define S(f)    _cee_set_##f
 #else
 #define S(f)    _##f
-#include "cee.h"
+#include "cee.hpp"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -180,9 +180,9 @@ set::data * union_set (set::data * s1, set::data * s2) {
   struct S(header) * h1 = FIND_HEADER(s1);
   struct S(header) * h2 = FIND_HEADER(s2);
   if (h1->cmp == h2->cmp) {
-    struct set::data * s0 = set::mk(h1->cmp);
-    struct vect::data * v1 = set::values(s1);
-    struct vect::data * v2 = set::values(s2);
+    set::data * s0 = set::mk(h1->cmp);
+    vect::data * v1 = set::values(s1);
+    vect::data * v2 = set::values(s2);
     int i;
     for (i = 0; i < vect::size(v1); i++)
       set::add(s0, v1->_[i]);

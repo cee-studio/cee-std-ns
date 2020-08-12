@@ -3,7 +3,7 @@
 #define S(f)  _cee_map_##f
 #else
 #define S(f)  _##f
-#include "cee.h"
+#include "cee.hpp"
 #include "cee-internal.h"
 #include <stdlib.h>
 #include <string.h>
@@ -24,7 +24,7 @@ struct S(header) {
 };
 
 struct S(pair) {
-  struct tuple::data * value;
+  tuple::data * value;
   struct S(header) * h;
 };
 
@@ -88,7 +88,7 @@ void add(map::data * m, void * key, void * value) {
 
 void * find(map::data * m, void * key) {
   struct S(header) * b = FIND_HEADER(m);
-  struct tuple::data t = { key, 0 };
+  tuple::data t = { key, 0 };
   struct S(pair) keyp = { .value = &t, .h = b };
   void **oldp = (void **)tfind(&keyp, b->_, S(cmp));
   if (oldp == NULL)
@@ -107,7 +107,7 @@ void * remove(map::data * m, void * key) {
   else {
     b->size --;
     struct S(pair) * t = (struct S(pair) *)*oldp;
-    struct tuple::data * ret = t->value;
+    tuple::data * ret = t->value;
     S(free_pair)(t);
     decr_indegree(b->key_del_policy, ret->_[0]);
     decr_indegree(b->val_del_policy, ret->_[1]);
@@ -118,14 +118,14 @@ void * remove(map::data * m, void * key) {
 static void S(get_key) (const void *nodep, const VISIT which, const int depth) {
   struct S(pair) * p;
   struct S(header) * h;
-  struct vect::data * keys;
+  vect::data * keys;
   switch (which) 
   {
     case preorder:
     case leaf:
       p = *(struct S(pair) **)nodep;
       h = p->h;
-      keys = (struct vect::data *)h->context;
+      keys = (vect::data *)h->context;
       h->context = vect::append(keys, p->value->_[0]);
       break;
     default:

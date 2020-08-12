@@ -3,7 +3,7 @@
 #define  S(f)  _cee_str_##f
 #else
 #define  S(f)  _##f
-#include "cee.h"
+#include "cee.hpp"
 #include "cee-internal.h"
 #include <stdio.h>
 #include <string.h>

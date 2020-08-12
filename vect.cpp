@@ -3,7 +3,7 @@
 #define  S(f)  _cee_vect_##f
 #else
 #define  S(f)  _##f
-#include "cee.h"
+#include "cee.hpp"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

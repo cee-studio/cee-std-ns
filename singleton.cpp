@@ -4,7 +4,7 @@
 #else
 #define  S(f)  _##f
 #include <string.h>
-#include "cee.h"
+#include "cee.hpp"
 #include "cee-internal.h"
 #endif
 #include "cee-header.h"

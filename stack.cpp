@@ -7,7 +7,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include "cee.h"
+#include "cee.hpp"
 #include "cee-internal.h"
 #endif
 #include "cee-header.h"
