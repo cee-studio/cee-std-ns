@@ -114,9 +114,9 @@ It's basically C with C++'s namespace.  It does not intend to replicate C++ STL 
   del(stack);
 ```
 
-**free any memory blocks of `struct cee_*`**
+**free any memory blocks of `cee::*::data`**
 
-any memory blocks pointed by a `cee struct` can be freed with `cee_del` like the following:
+any memory blocks of a `cee::*::data` type can be freed with `cee::del` like the following:
 ```
    #include "cee.h"
 
@@ -149,8 +149,8 @@ All memory access violations will be detected and reproted.
 ### Using your computer
 
 ```
-git clone https://github.com/cee-studio/orca.git
-cd orca/cee-cc
+git clone https://github.com/cee-studio/cee-std-ns.git
+cd cee-std-ns
 make
 ./a.out
 ```
