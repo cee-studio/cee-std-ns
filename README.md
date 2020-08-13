@@ -1,5 +1,13 @@
 # A single file C++ library to provide similar productivity of C++ STL
-It's basically C with C++'s namespace.  It does not intend to replicate C++ STL function by function.
+It's basically cee-std using C++'s namespace to organize symbols.  
+It does not intend to replicate C++ STL function by function.
+
+## When should you use this lib ?
+1. If you need a simple C style containers for data oriented programming, 
+   and have the full control of how memory are allocated and freed.
+                                                                                
+2. If you want to develop your own dynamic typed scripting languages but 
+   you don't want reinvent the wheel to develop its runtime system. 
 
 ## How to use it ?
 
