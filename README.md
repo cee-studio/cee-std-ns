@@ -1,6 +1,6 @@
 # A simple single C++ container library
 
-The goal is to improve C lover's productivity for "high level" programming 
+The goal is to improve C lover's productivity for "*high level*" programming 
 by providing similar functionalities of C++ STL, but it does not intend to 
 replicate C++ STL function by function.  This is reimplementation of [cee-std](https://github.com/cee-studio/cee-std) 
 with C++'s namespace to organize symbols. The readability of the code is 
