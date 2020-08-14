@@ -33,6 +33,7 @@ cee-one.o: cee-one.cpp
 
 release:
 	$(call cee_amalgamation, cee.cpp,-P)
+	@mkdir -p release
 	@mv cee.cpp  release
 	@cp cee.hpp  release
 
