@@ -7,7 +7,7 @@ It does not intend to replicate C++ STL function by function.
    and have the full control of how memory are allocated and freed.
                                                                                 
 2. If you want to develop your own dynamic typed scripting languages but 
-   you don't want reinvent the wheel to develop its runtime system. 
+   you don't want reinvent a runtime system. 
 
 ## How to use it ?
 
@@ -74,8 +74,8 @@ It does not intend to replicate C++ STL function by function.
 
   set::data * st = set::mk((cmp_fun)strcmp);
   printf ("st: %p\n", st);
-  set::add(st, "a");
-  set::add(st, "aabc");
+  set::add(st, str::mk("a"));
+  set::add(st, str::mk("aabc"));
   char * p = (char *)set::find(st, "aabc");
   printf ("%s\n", p);
 
