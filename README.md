@@ -59,7 +59,7 @@ It does not intend to replicate C++ STL function by function.
   
   printf("v.count %u\n", vect::count(v));
   for (int i = 0; i < vect::count(v); i++) {
-    printf ("%d:%s\n", i, (char *)v->e[i]);
+    printf ("%d:%s\n", i, (char *)v->_[i]);
   }
 
   // delete vector
@@ -99,7 +99,7 @@ It does not intend to replicate C++ STL function by function.
   
   vect::data * keys = map::keys(mp);
   for (int i = 0; i < vect::count(keys); i++) {
-    printf ("[%d] key:%s\n", i, (char *)keys->e[i]);
+    printf ("[%d] key:%s\n", i, (char *)keys->_[i]);
   }
  
   // delete map
