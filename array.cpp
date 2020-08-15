@@ -1,6 +1,6 @@
 #ifdef CEE_AMALGAMATION
 #undef   S
-#define  S(f)  _cee_vect_##f
+#define  S(f)  _cee_array_##f
 #else
 #define  S(f)  _##f
 #include "cee.hpp"
@@ -13,7 +13,7 @@
 #include "cee-header.h"
 
 namespace cee {
-namespace vect {
+namespace array {
 
 struct S(header) {
   uintptr_t size;
@@ -33,7 +33,7 @@ static void S(del) (void * v) {
   free(m);
 }
 
-vect::data * mk_e (enum del_policy o, size_t cap) {
+array::data * mk_e (enum del_policy o, size_t cap) {
   size_t mem_block_size = sizeof(struct S(header)) + cap * sizeof(void *);
   struct S(header) * m = (struct S(header) *)malloc(mem_block_size);
   m->capacity = cap;
@@ -43,14 +43,14 @@ vect::data * mk_e (enum del_policy o, size_t cap) {
   m->cs.del = S(del);
   m->cs.resize_method = resize_with_malloc;
   m->cs.mem_block_size = mem_block_size;
-  return (vect::data *)(m->_);
+  return (array::data *)(m->_);
 }
 
-vect::data * mk (size_t cap) {
+array::data * mk (size_t cap) {
   return mk_e(CEE_DEFAULT_DEL_POLICY, cap);
 }
 
-vect::data * append (vect::data * v, void *e) {
+array::data * append (array::data * v, void *e) {
   struct S(header) * m = FIND_HEADER(v);
   size_t capacity = m->capacity;
   size_t extra_cap = capacity ? capacity : 1;
@@ -63,10 +63,10 @@ vect::data * append (vect::data * v, void *e) {
   m->_[m->size] = e;
   m->size ++;
   incr_indegree(m->del_policy, e);
-  return (vect::data *)m->_;
+  return (array::data *)m->_;
 }
 
-vect::data * insert(vect::data * v, size_t index, void *e) {
+array::data * insert(array::data * v, size_t index, void *e) {
   struct S(header) * m = FIND_HEADER(v);
   size_t capacity = m->capacity;
   size_t extra_cap = capacity ? capacity : 1;
@@ -83,10 +83,10 @@ vect::data * insert(vect::data * v, size_t index, void *e) {
   m->_[index] = e;
   m->size ++;
   incr_indegree(m->del_policy, e);
-  return (vect::data *)m->_;
+  return (array::data *)m->_;
 }
 
-vect::data * remove(vect::data * v, size_t index) {
+array::data * remove(array::data * v, size_t index) {
   struct S(header) * m = FIND_HEADER(v);
   if (index >= m->size) return v;
  
@@ -98,16 +98,16 @@ vect::data * remove(vect::data * v, size_t index) {
   
   m->size --;
   decr_indegree(m->del_policy, e);
-  return (vect::data *)m->_;
+  return (array::data *)m->_;
 }
 
 
-size_t size (vect::data *x) {
+size_t size (array::data *x) {
   struct S(header) * m = FIND_HEADER(x);
   return m->size;
 }
 
-size_t capacity (vect::data * x) {
+size_t capacity (array::data * x) {
   struct S(header) * h = FIND_HEADER(x);
   return h->capacity;
 }

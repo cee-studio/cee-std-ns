@@ -146,20 +146,20 @@ static void S(get_value) (const void *nodep, const VISIT which, const int depth)
     case leaf:
       p = (S(pair) *)*(void **)nodep;
       h = p->h;
-      h->context = vect::append((vect::data *) h->context, p->value);
+      h->context = array::append((array::data *) h->context, p->value);
       break;
     default:
       break;
   }
 }
 
-vect::data * values(set::data * m) {
+array::data * values(set::data * m) {
   uintptr_t s = set::size(m);
   struct S(header) * h = FIND_HEADER(m);
-  h->context = vect::mk(s);
+  h->context = array::mk(s);
   use_realloc(h->context);
   twalk(h->_[0], S(get_value));
-  return (vect::data *)h->context;
+  return (array::data *)h->context;
 }
 
 void * remove(set::data *m, void * key) {
@@ -181,13 +181,13 @@ set::data * union_set (set::data * s1, set::data * s2) {
   struct S(header) * h2 = FIND_HEADER(s2);
   if (h1->cmp == h2->cmp) {
     set::data * s0 = set::mk(h1->cmp);
-    vect::data * v1 = set::values(s1);
-    vect::data * v2 = set::values(s2);
+    array::data * v1 = set::values(s1);
+    array::data * v2 = set::values(s2);
     int i;
-    for (i = 0; i < vect::size(v1); i++)
+    for (i = 0; i < array::size(v1); i++)
       set::add(s0, v1->_[i]);
     
-    for (i = 0; i < vect::size(v2); i++)
+    for (i = 0; i < array::size(v2); i++)
       set::add(s0, v2->_[i]);
     
     del(v1);

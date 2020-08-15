@@ -52,25 +52,25 @@ idiomatic C code without requiring any wrappers.
   del(s2);
 ```
 
-**vector**
+**expandable array**
 ```
   #include "cee.h"
  
   using namespace cee;
 
-  vect::data *v;
+  array::data *v;
   
-  v = vect::mk(1);
-  v = vect::append(v, str::mk("1"));
-  v = vect::append(v, str::mk("2"));
-  v = vect::append(v, str::mk("3"));
+  v = array::mk(1);
+  v = array::append(v, str::mk("1"));
+  v = array::append(v, str::mk("2"));
+  v = array::append(v, str::mk("3"));
   
-  printf("v.count %u\n", vect::count(v));
-  for (int i = 0; i < vect::count(v); i++) {
+  printf("v.size %u\n", array::size(v));
+  for (int i = 0; i < array::size(v); i++) {
     printf ("%d:%s\n", i, (char *)v->_[i]);
   }
 
-  // delete vector
+  // delete array
   del(v);
 ```
 

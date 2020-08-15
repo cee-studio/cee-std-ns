@@ -1,5 +1,5 @@
 CEE_SRC=cee-common.cpp boxed.cpp str.cpp dict.cpp map.cpp set.cpp stack.cpp \
-  tuple.cpp triple.cpp quadruple.cpp vect.cpp tagged.cpp singleton.cpp \
+  tuple.cpp triple.cpp quadruple.cpp array.cpp tagged.cpp singleton.cpp \
   closure.cpp block.cpp n_tuple.cpp
 
 CXXFLAGS= -fno-rtti -fno-exceptions -g

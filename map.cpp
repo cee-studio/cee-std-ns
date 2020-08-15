@@ -130,25 +130,25 @@ void * remove(map::data * m, void * key) {
 static void S(get_key) (const void *nodep, const VISIT which, const int depth) {
   struct S(pair) * p;
   struct S(header) * h;
-  vect::data * keys;
+  array::data * keys;
   switch (which) 
   {
     case preorder:
     case leaf:
       p = *(struct S(pair) **)nodep;
       h = p->h;
-      keys = (vect::data *)h->context;
-      h->context = vect::append(keys, p->value->_[0]);
+      keys = (array::data *)h->context;
+      h->context = array::append(keys, p->value->_[0]);
       break;
     default:
       break;
   }
 }
 
-vect::data * keys(map::data * m) {
+array::data * keys(map::data * m) {
   uintptr_t s = map::size(m);
   struct S(header) * b = FIND_HEADER(m);
-  vect::data * keys = vect::mk(s);
+  array::data * keys = array::mk(s);
   b->context = keys;
   twalk(b->_[0], S(get_key));
   return keys;
@@ -158,25 +158,25 @@ vect::data * keys(map::data * m) {
 static void S(get_value) (const void *nodep, const VISIT which, const int depth) {
   struct S(pair) * p;
   struct S(header) * h;
-  vect::data * values;
+  array::data * values;
   switch (which) 
   {
     case preorder:
     case leaf:
       p = (struct S(pair) *)*(void **)nodep;
       h = p->h;
-      values = (vect::data *)h->context;
-      h->context = vect::append(values, p->value->_[1]);
+      values = (array::data *)h->context;
+      h->context = array::append(values, p->value->_[1]);
       break;
     default:
       break;
   }
 }
 
-vect::data * values(map::data * m) {
+array::data * values(map::data * m) {
   uintptr_t s = map::size(m);
   struct S(header) * b = FIND_HEADER(m);
-  vect::data * values = vect::mk(s);
+  array::data * values = array::mk(s);
   b->context = values;
   twalk(b->_[0], S(get_value));
   return values;

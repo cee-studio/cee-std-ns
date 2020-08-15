@@ -27,29 +27,29 @@ int main () {
   printf("%s\n", s2->_);
   
   /* test vector */
-  vect::data *v, *v1, *v2;
+  array::data *v, *v1, *v2;
   
-  v = vect::mk(1);
+  v = array::mk(1);
   use_realloc(v);
   
-  v = vect::append(v, s);
-  v = vect::append(v, s1);
-  v = vect::append(v, s2);
+  v = array::append(v, s);
+  v = array::append(v, s1);
+  v = array::append(v, s2);
   
-  printf("v.count %u\n", vect::size(v));
+  printf("v.size %u\n", array::size(v));
   int i;
-  for (i = 0; i < vect::size(v); i++)
+  for (i = 0; i < array::size(v); i++)
     printf ("%d:%s\n", i, (char *)v->_[i]);
   
   del(v);
   
   /* a dynamic typed array */
-  v = vect::mk(1);
+  v = array::mk(1);
   use_realloc(v);
   
-  v = vect::append(v, tagged::mk(1, boxed::from_i32(10)));
-  v = vect::append(v, tagged::mk(2, boxed::from_float(10.1)));
-  v = vect::append(v, tagged::mk(3, str::mk("10")));
+  v = array::append(v, tagged::mk(1, boxed::from_i32(10)));
+  v = array::append(v, tagged::mk(2, boxed::from_float(10.1)));
+  v = array::append(v, tagged::mk(3, str::mk("10")));
   del(v);
   
   /* test set */
@@ -62,9 +62,9 @@ int main () {
   char * p = (char *)set::find(st, (char *)"aabc");
   printf ("%s\n", p);
   
-  vect::data * svals = NULL;
+  array::data * svals = NULL;
   svals = set::values(st);
-  for (i = 0; i < vect::size(svals); i++)
+  for (i = 0; i < array::size(svals); i++)
     printf ("%d %s\n", i, svals->_[i]);
   
   del(st);
@@ -81,8 +81,8 @@ int main () {
   boxed::data * t = (boxed::data *)map::find(mp, (char *)"1");
   printf ("found value %d\n", boxed::to_i32(t));
   
-  vect::data * keys = map::keys(mp);
-  for (i = 0; i < vect::size(keys); i++)
+  array::data * keys = map::keys(mp);
+  for (i = 0; i < array::size(keys); i++)
     printf ("[%d] key:%s\n", i, (char *)keys->_[i]);
   
   del(keys);
