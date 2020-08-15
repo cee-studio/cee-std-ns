@@ -159,7 +159,7 @@ any memory blocks of a `cee::*::data` type can be freed with `cee::del` like the
 3. click Start
 4. run it Terminal
 
-All memory access violations will be detected and reproted. 
+All memory access violations will be detected and reported.
 
 
 ### Using your computer

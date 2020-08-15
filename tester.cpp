@@ -43,6 +43,15 @@ int main () {
   
   del(v);
   
+  /* a dynamic typed array */
+  v = vect::mk(1);
+  use_realloc(v);
+  
+  v = vect::append(v, tagged::mk(1, boxed::from_i32(10)));
+  v = vect::append(v, tagged::mk(2, boxed::from_float(10.1)));
+  v = vect::append(v, tagged::mk(3, str::mk("10")));
+  del(v);
+  
   /* test set */
   set::data * st = NULL;
   st = set::mk((cmp_fun)strcmp);
