@@ -52,7 +52,7 @@ idiomatic C code without requiring any wrappers.
   del(s2);
 ```
 
-**expandable array**
+**array** (auto expandable)
 ```
   #include "cee.h"
  
@@ -154,21 +154,28 @@ any memory blocks of a `cee::*::data` type can be freed with `cee::del` like the
 ## How to test/develop it ?
 
 ### Using https://www.cee.studio cloud IDE
+
+cee.studio is our primary development IDE, as it can automatically detect and 
+report all memory access violations, and memory leaks.
+
 1. click [https://cee.studio/?bucket=orca&name=cee-std-ns](https://cee.studio/?bucket=orca&name=cee-std-ns)
 2. clone to my account
 3. click Start
 4. run it Terminal
 
-All memory access violations will be detected and reported.
+
 
 
 ### Using your computer
+
+You will need to install `valgrind` to debug memory access violations, and memory leaks.
 
 ```
 git clone https://github.com/cee-studio/cee-std-ns.git
 cd cee-std-ns
 make
 ./a.out
+valgrind ./a.out
 ```
 
 ## Rationale
