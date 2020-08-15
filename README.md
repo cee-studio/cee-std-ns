@@ -153,7 +153,7 @@ any memory blocks of a `cee::*::data` type can be freed with `cee::del` like the
 
 ## How to test/develop it ?
 
-### Using https://cee.studio cloud IDE
+### Using https://www.cee.studio cloud IDE
 1. click [https://cee.studio/?bucket=orca&name=cee-std-ns](https://cee.studio/?bucket=orca&name=cee-std-ns)
 2. clone to my account
 3. click Start
