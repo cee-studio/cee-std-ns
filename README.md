@@ -176,6 +176,6 @@ make
 [DESIGN](./DESIGN.md)
 
 
-## Contirubtion is welcome
+## Contribution is welcome
 
 Please join our discord [https://discord.gg/nBUqrWf](https://discord.gg/nBUqrWf)
