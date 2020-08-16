@@ -17,8 +17,8 @@ namespace cee {
   namespace dict {
 
 struct S(header) {
-  struct array::data * keys;
-  struct array::data * vals;
+  struct list::data * keys;
+  struct list::data * vals;
   uintptr_t size;
   enum del_policy del_policy;
   struct sect cs;
@@ -38,10 +38,10 @@ dict::data * mk_e (enum del_policy o, size_t size) {
   size_t mem_block_size = sizeof(struct S(header));
   struct S(header) * m = (struct S(header) *)malloc(mem_block_size);
   m->del_policy = o;
-  m->keys = array::mk(size);
+  m->keys = list::mk(size);
   use_realloc(m->keys);
   
-  m->vals = array::mk(size);
+  m->vals = list::mk(size);
   use_realloc(m->vals);
   
   m->size = size;

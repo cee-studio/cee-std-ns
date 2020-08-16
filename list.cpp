@@ -1,6 +1,6 @@
 #ifdef CEE_AMALGAMATION
 #undef   S
-#define  S(f)  _cee_array_##f
+#define  S(f)  _cee_list_##f
 #else
 #define  S(f)  _##f
 #include "cee.hpp"
@@ -13,7 +13,7 @@
 #include "cee-header.h"
 
 namespace cee {
-namespace array {
+namespace list {
 
 struct S(header) {
   uintptr_t size;
@@ -33,7 +33,7 @@ static void S(del) (void * v) {
   free(m);
 }
 
-array::data * mk_e (enum del_policy o, size_t cap) {
+list::data * mk_e (enum del_policy o, size_t cap) {
   size_t mem_block_size = sizeof(struct S(header)) + cap * sizeof(void *);
   struct S(header) * m = (struct S(header) *)malloc(mem_block_size);
   m->capacity = cap;
@@ -43,14 +43,14 @@ array::data * mk_e (enum del_policy o, size_t cap) {
   m->cs.del = S(del);
   m->cs.resize_method = resize_with_malloc;
   m->cs.mem_block_size = mem_block_size;
-  return (array::data *)(m->_);
+  return (list::data *)(m->_);
 }
 
-array::data * mk (size_t cap) {
+list::data * mk (size_t cap) {
   return mk_e(CEE_DEFAULT_DEL_POLICY, cap);
 }
 
-array::data * append (array::data * v, void *e) {
+list::data * append (list::data * v, void *e) {
   struct S(header) * m = FIND_HEADER(v);
   size_t capacity = m->capacity;
   size_t extra_cap = capacity ? capacity : 1;
@@ -63,10 +63,10 @@ array::data * append (array::data * v, void *e) {
   m->_[m->size] = e;
   m->size ++;
   incr_indegree(m->del_policy, e);
-  return (array::data *)m->_;
+  return (list::data *)m->_;
 }
 
-array::data * insert(array::data * v, size_t index, void *e) {
+list::data * insert(list::data * v, size_t index, void *e) {
   struct S(header) * m = FIND_HEADER(v);
   size_t capacity = m->capacity;
   size_t extra_cap = capacity ? capacity : 1;
@@ -83,10 +83,10 @@ array::data * insert(array::data * v, size_t index, void *e) {
   m->_[index] = e;
   m->size ++;
   incr_indegree(m->del_policy, e);
-  return (array::data *)m->_;
+  return (list::data *)m->_;
 }
 
-array::data * remove(array::data * v, size_t index) {
+list::data * remove(list::data * v, size_t index) {
   struct S(header) * m = FIND_HEADER(v);
   if (index >= m->size) return v;
  
@@ -98,16 +98,16 @@ array::data * remove(array::data * v, size_t index) {
   
   m->size --;
   decr_indegree(m->del_policy, e);
-  return (array::data *)m->_;
+  return (list::data *)m->_;
 }
 
 
-size_t size (array::data *x) {
+size_t size (list::data *x) {
   struct S(header) * m = FIND_HEADER(x);
   return m->size;
 }
 
-size_t capacity (array::data * x) {
+size_t capacity (list::data * x) {
   struct S(header) * h = FIND_HEADER(x);
   return h->capacity;
 }

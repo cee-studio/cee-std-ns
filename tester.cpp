@@ -27,29 +27,29 @@ int main () {
   printf("%s\n", s2->_);
   
   /* test vector */
-  array::data *v, *v1, *v2;
+  list::data *v, *v1, *v2;
   
-  v = array::mk(1);
+  v = list::mk(1);
   use_realloc(v);
   
-  v = array::append(v, s);
-  v = array::append(v, s1);
-  v = array::append(v, s2);
+  v = list::append(v, s);
+  v = list::append(v, s1);
+  v = list::append(v, s2);
   
-  printf("v.size %u\n", array::size(v));
+  printf("v.size %u\n", list::size(v));
   int i;
-  for (i = 0; i < array::size(v); i++)
+  for (i = 0; i < list::size(v); i++)
     printf ("%d:%s\n", i, (char *)v->_[i]);
   
   del(v);
   
   /* a dynamic typed array */
-  v = array::mk(1);
+  v = list::mk(1);
   use_realloc(v);
   
-  v = array::append(v, tagged::mk(1, boxed::from_i32(10)));
-  v = array::append(v, tagged::mk(2, boxed::from_float(10.1)));
-  v = array::append(v, tagged::mk(3, str::mk("10")));
+  v = list::append(v, tagged::mk(1, boxed::from_i32(10)));
+  v = list::append(v, tagged::mk(2, boxed::from_float(10.1)));
+  v = list::append(v, tagged::mk(3, str::mk("10")));
   del(v);
   
   /* test set */
@@ -62,9 +62,9 @@ int main () {
   char * p = (char *)set::find(st, (char *)"aabc");
   printf ("%s\n", p);
   
-  array::data * svals = NULL;
+  list::data * svals = NULL;
   svals = set::values(st);
-  for (i = 0; i < array::size(svals); i++)
+  for (i = 0; i < list::size(svals); i++)
     printf ("%d %s\n", i, svals->_[i]);
   
   del(st);
@@ -81,8 +81,8 @@ int main () {
   boxed::data * t = (boxed::data *)map::find(mp, (char *)"1");
   printf ("found value %d\n", boxed::to_i32(t));
   
-  array::data * keys = map::keys(mp);
-  for (i = 0; i < array::size(keys); i++)
+  list::data * keys = map::keys(mp);
+  for (i = 0; i < list::size(keys); i++)
     printf ("[%d] key:%s\n", i, (char *)keys->_[i]);
   
   del(keys);

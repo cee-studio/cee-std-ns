@@ -52,25 +52,25 @@ idiomatic C code without requiring any wrappers.
   del(s2);
 ```
 
-**array** (auto expandable)
+**list**
 ```
   #include "cee.h"
  
   using namespace cee;
 
-  array::data *v;
+  list::data *v;
   
-  v = array::mk(1);
-  v = array::append(v, str::mk("1"));
-  v = array::append(v, str::mk("2"));
-  v = array::append(v, str::mk("3"));
+  v = list::mk(1);
+  v = list::append(v, str::mk("1"));
+  v = list::append(v, str::mk("2"));
+  v = list::append(v, str::mk("3"));
   
-  printf("v.size %u\n", array::size(v));
-  for (int i = 0; i < array::size(v); i++) {
+  printf("v.size %u\n", list::size(v));
+  for (int i = 0; i < list::size(v); i++) {
     printf ("%d:%s\n", i, (char *)v->_[i]);
   }
 
-  // delete array
+  // delete list
   del(v);
 ```
 
