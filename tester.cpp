@@ -26,15 +26,12 @@ int main () {
   s2 = str::mk("%s, %s", s, s1);
   printf("%s\n", s2->_);
   
-  /* test vector */
-  list::data *v, *v1, *v2;
+  /* test list */
+  list::data *v = NULL;
   
-  v = list::mk(1);
-  use_realloc(v);
-  
-  v = list::append(v, s);
-  v = list::append(v, s1);
-  v = list::append(v, s2);
+  list::append(&v, s);
+  list::append(&v, s1);
+  list::append(&v, s2);
   
   printf("v.size %u\n", list::size(v));
   int i;
@@ -43,13 +40,17 @@ int main () {
   
   del(v);
   
-  /* a dynamic typed array */
-  v = list::mk(1);
-  use_realloc(v);
+  /* heterogeneous list [ 10, 10.0, "10"] */
+  enum T {
+    I_T,
+    F_T,
+    S_T,
+  };
   
-  v = list::append(v, tagged::mk(1, boxed::from_i32(10)));
-  v = list::append(v, tagged::mk(2, boxed::from_float(10.1)));
-  v = list::append(v, tagged::mk(3, str::mk("10")));
+  v = NULL;
+  list::append(&v, tagged::mk(I_T, boxed::from_i32(10)));
+  list::append(&v, tagged::mk(F_T, boxed::from_float(10.1)));
+  list::append(&v, tagged::mk(S_T, str::mk("10")));
   del(v);
   
   /* test set */

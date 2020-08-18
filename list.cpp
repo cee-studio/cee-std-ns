@@ -50,7 +50,13 @@ list::data * mk (size_t cap) {
   return mk_e(CEE_DEFAULT_DEL_POLICY, cap);
 }
 
-list::data * append (list::data * v, void *e) {
+list::data * append (list::data ** l, void *e) {
+  list::data * v = *l;
+  if (v == NULL) {
+    v = mk(10);
+    use_realloc(v);
+  }
+    
   struct S(header) * m = FIND_HEADER(v);
   size_t capacity = m->capacity;
   size_t extra_cap = capacity ? capacity : 1;
@@ -63,10 +69,17 @@ list::data * append (list::data * v, void *e) {
   m->_[m->size] = e;
   m->size ++;
   incr_indegree(m->del_policy, e);
-  return (list::data *)m->_;
+  *l = (list::data *)m->_;
+  return *l;
 }
 
-list::data * insert(list::data * v, size_t index, void *e) {
+list::data * insert(list::data ** l, size_t index, void *e) {
+  list::data * v = *l;
+  if (v == NULL) {
+    v = mk(10);
+    use_realloc(v);
+  }
+  
   struct S(header) * m = FIND_HEADER(v);
   size_t capacity = m->capacity;
   size_t extra_cap = capacity ? capacity : 1;
@@ -83,12 +96,13 @@ list::data * insert(list::data * v, size_t index, void *e) {
   m->_[index] = e;
   m->size ++;
   incr_indegree(m->del_policy, e);
-  return (list::data *)m->_;
+  *l = (list::data *)m->_;
+  return *l;
 }
 
-list::data * remove(list::data * v, size_t index) {
+bool remove(list::data * v, size_t index) {
   struct S(header) * m = FIND_HEADER(v);
-  if (index >= m->size) return v;
+  if (index >= m->size) return false;
  
   void * e = m->_[index];
   m->_[index] = 0;
@@ -98,7 +112,7 @@ list::data * remove(list::data * v, size_t index) {
   
   m->size --;
   decr_indegree(m->del_policy, e);
-  return (list::data *)m->_;
+  return true;
 }
 
 

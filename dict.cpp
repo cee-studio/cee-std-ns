@@ -73,8 +73,8 @@ void add (dict::data * d, char * key, void * value) {
   n.data = value;
   if (!hsearch_r(n, ENTER, &np, m->_))
     segfault();
-  m->keys = append(m->keys, key);
-  m->vals = append(m->vals, value);
+  append(&m->keys, key);
+  append(&m->vals, value);
 }
 
 void * find(dict::data * d, char * key) {

@@ -137,8 +137,7 @@ static void S(get_key) (const void *nodep, const VISIT which, const int depth) {
     case leaf:
       p = *(struct S(pair) **)nodep;
       h = p->h;
-      keys = (list::data *)h->context;
-      h->context = list::append(keys, p->value->_[0]);
+      list::append((list::data **)&h->context, p->value->_[0]);
       break;
     default:
       break;
@@ -165,8 +164,7 @@ static void S(get_value) (const void *nodep, const VISIT which, const int depth)
     case leaf:
       p = (struct S(pair) *)*(void **)nodep;
       h = p->h;
-      values = (list::data *)h->context;
-      h->context = list::append(values, p->value->_[1]);
+      list::append((list::data **)&h->context, p->value->_[1]);
       break;
     default:
       break;

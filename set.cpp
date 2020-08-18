@@ -146,7 +146,7 @@ static void S(get_value) (const void *nodep, const VISIT which, const int depth)
     case leaf:
       p = (S(pair) *)*(void **)nodep;
       h = p->h;
-      h->context = list::append((list::data *) h->context, p->value);
+      list::append((list::data **) &h->context, p->value);
       break;
     default:
       break;
