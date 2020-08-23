@@ -24,15 +24,16 @@ struct S(header) {
   void * _[];
 };
 
-static void S(del) (void * v) {
+static void S(trace) (void * v, enum trace_action ta) {
   struct S(header) * m = FIND_HEADER(v);
   int i;
   for (i = 0; i < m->used; i++)
     del_e(m->del_policy, m->_[i]);
-  free(m);
+  if (ta == trace_del)
+    free(m);
 }
 
-stack::data * mk_e (enum del_policy o, size_t size) {
+stack::data * mk_e (state::data * st, enum del_policy o, size_t size) {
   uintptr_t mem_block_size = sizeof(struct S(header)) + size * sizeof(void *);
   struct S(header) * m = (struct S(header) *)malloc(mem_block_size);
   m->capacity = size;
@@ -40,13 +41,14 @@ stack::data * mk_e (enum del_policy o, size_t size) {
   m->top = (0-1);
   m->del_policy = o;
   ZERO_CEE_SECT(&m->cs);
-  m->cs.del = S(del);
+  m->cs.state = st;
+  m->cs.trace = S(trace);
   m->cs.mem_block_size = mem_block_size;
   return (stack::data *)(m->_);
 }
 
-stack::data * mk (size_t size) {
-  return mk_e(CEE_DEFAULT_DEL_POLICY, size);
+stack::data * mk (state::data * st, size_t size) {
+  return mk_e(st, CEE_DEFAULT_DEL_POLICY, size);
 }
 
 int push (stack::data * v, void *e) {

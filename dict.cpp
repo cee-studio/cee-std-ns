@@ -26,27 +26,29 @@ struct S(header) {
 };
 
 
-static void S(del)(void *d) {
+static void S(trace)(void *d, enum trace_action sa) {
   struct S(header) * m = FIND_HEADER(d);
   hdestroy_r(m->_);
   del_e(m->del_policy, m->keys);
   del_e(m->del_policy, m->vals);
-  free(m);
+  if (sa == trace_del)
+    free(m);
 }
 
-dict::data * mk_e (enum del_policy o, size_t size) {
+dict::data * mk_e (state::data * s, enum del_policy o, size_t size) {
   size_t mem_block_size = sizeof(struct S(header));
   struct S(header) * m = (struct S(header) *)malloc(mem_block_size);
   m->del_policy = o;
-  m->keys = list::mk(size);
+  m->keys = list::mk(s, size);
   use_realloc(m->keys);
   
-  m->vals = list::mk(size);
+  m->vals = list::mk(s, size);
   use_realloc(m->vals);
   
   m->size = size;
   ZERO_CEE_SECT(&m->cs);
-  m->cs.del = S(del);
+  m->cs.state = s;
+  m->cs.trace = S(trace);
   m->cs.mem_block_size = mem_block_size;
   m->cs.resize_method = resize_with_identity;
   m->cs.n_product = 2; // key:str, value
@@ -62,8 +64,8 @@ dict::data * mk_e (enum del_policy o, size_t size) {
   }
 }
 
-dict::data * mk (size_t size) {
-  return dict::mk_e (CEE_DEFAULT_DEL_POLICY, size);
+dict::data * mk (state::data *s, size_t size) {
+  return dict::mk_e (s, CEE_DEFAULT_DEL_POLICY, size);
 }
 
 void add (dict::data * d, char * key, void * value) {

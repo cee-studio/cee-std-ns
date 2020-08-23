@@ -25,37 +25,34 @@ struct S(header) {
 
 #include "cee-resize.h"
 
-static void S(del) (void * v) {
+static void S(trace) (void * v, enum trace_action sa) {
   struct S(header) * m = FIND_HEADER(v);
   int i;
   for (i = 0; i < m->size; i++)
     del_e(m->del_policy, m->_[i]);
-  free(m);
+  if (sa == trace_del)
+    free(m);
 }
 
-list::data * mk_e (enum del_policy o, size_t cap) {
+list::data * mk_e (state::data * s, enum del_policy o, size_t cap) {
   size_t mem_block_size = sizeof(struct S(header)) + cap * sizeof(void *);
   struct S(header) * m = (struct S(header) *)malloc(mem_block_size);
   m->capacity = cap;
   m->size = 0;
   m->del_policy = o;
   ZERO_CEE_SECT(&m->cs);
-  m->cs.del = S(del);
+  m->cs.trace = S(trace);
   m->cs.resize_method = resize_with_malloc;
   m->cs.mem_block_size = mem_block_size;
   return (list::data *)(m->_);
 }
 
-list::data * mk (size_t cap) {
-  return mk_e(CEE_DEFAULT_DEL_POLICY, cap);
+list::data * mk (state::data * s, size_t cap) {
+  return mk_e(s, CEE_DEFAULT_DEL_POLICY, cap);
 }
 
 list::data * append (list::data ** l, void *e) {
   list::data * v = *l;
-  if (v == NULL) {
-    v = mk(10);
-    use_realloc(v);
-  }
     
   struct S(header) * m = FIND_HEADER(v);
   size_t capacity = m->capacity;
@@ -73,10 +70,10 @@ list::data * append (list::data ** l, void *e) {
   return *l;
 }
 
-list::data * insert(list::data ** l, size_t index, void *e) {
+list::data * insert(state::data * s, list::data ** l, size_t index, void *e) {
   list::data * v = *l;
   if (v == NULL) {
-    v = mk(10);
+    v = mk(s, 10);
     use_realloc(v);
   }
   

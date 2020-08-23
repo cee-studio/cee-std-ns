@@ -19,22 +19,24 @@ struct S(header) {
   void * _[2];
 };
 
-static void S(del)(void * v) {
+static void S(trace)(void * v, enum trace_action ta) {
   struct S(header) * b = FIND_HEADER(v);
   int i;
   for (i = 0; i < 2; i++)
     del_e(b->del_policies[i], b->_[i]);
-  free(b);
+  if (ta == trace_del)
+    free(b);
 }
 
 
-tuple::data * mk_e (enum del_policy o[2], void * v1, void * v2) {
+tuple::data * mk_e (state::data * st, enum del_policy o[2], void * v1, void * v2) {
   size_t mem_block_size = sizeof(struct S(header));
   struct S(header) * m = (struct S(header) *) malloc(mem_block_size);
   ZERO_CEE_SECT(&m->cs);
-  m->cs.del = S(del);
+  m->cs.trace = S(trace);
   m->cs.resize_method = resize_with_identity;
   m->cs.mem_block_size = mem_block_size;
+  m->cs.state = st;
   m->_[0] = v1;
   m->_[1] = v2;
   int i;
@@ -45,10 +47,9 @@ tuple::data * mk_e (enum del_policy o[2], void * v1, void * v2) {
   return (tuple::data *)&m->_;
 }
 
-tuple::data * mk (void * v1, void * v2) {
-  static enum del_policy o[2] = { CEE_DEFAULT_DEL_POLICY, 
-                                 CEE_DEFAULT_DEL_POLICY };
-  return mk_e(o, v1, v2);
+tuple::data * mk (state::data * st, void * v1, void * v2) {
+  static enum del_policy o[2] = { CEE_DEFAULT_DEL_POLICY, CEE_DEFAULT_DEL_POLICY };
+  return mk_e(st, o, v1, v2);
 }
     
   }

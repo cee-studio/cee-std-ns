@@ -34,10 +34,11 @@ static void S(free_pair)(void * c) {
   free(p);
 }
 
-static void S(del)(void * p) {
+static void S(trace)(void * p, enum trace_action ta) {
   struct S(header) * b = FIND_HEADER (p);
   tdestroy(b->_[0], S(free_pair));
-  free(b);
+  if (ta == trace_del)
+    free(b);
 }
 
 static int S(cmp) (const void * v1, const void * v2) {
@@ -49,28 +50,30 @@ static int S(cmp) (const void * v1, const void * v2) {
     segfault();
 }
 
-map::data * mk_e (enum del_policy o[2], int (*cmp)(const void *, const void *)) {
+map::data * mk_e (state::data * st, 
+                  enum del_policy o[2], int (*cmp)(const void *, const void *)) {
   size_t mem_block_size = sizeof(struct S(header));
   struct S(header) * m = (struct S(header) *)malloc(mem_block_size);
   m->context = NULL;
   m->cmp = cmp;
   m->size = 0;
   ZERO_CEE_SECT(&m->cs);
-  m->cs.del = S(del);
+  m->cs.trace = S(trace);
   m->cs.resize_method = resize_with_identity;
   m->cs.mem_block_size = mem_block_size;
   m->cs.cmp = 0;
   m->cs.cmp_stop_at_null = 0;
   m->cs.n_product = 2; // key, value
+  m->cs.state = st;
   m->key_del_policy = o[0];
   m->val_del_policy = o[1];
   m->_[0] = 0;
   return (map::data *)m->_;
 }
 
-map::data * mk(int (*cmp) (const void *, const void *)) {
+map::data * mk(state::data * st, int (*cmp) (const void *, const void *)) {
   static enum del_policy d[2] = { CEE_DEFAULT_DEL_POLICY, CEE_DEFAULT_DEL_POLICY };
-  return mk_e(d, cmp);
+  return mk_e(st, d, cmp);
 }
     
 uintptr_t size(struct map::data * m) {
@@ -87,7 +90,7 @@ void add(map::data * m, void * key, void * value) {
   d[0] = b->key_del_policy;
   d[1] = b->val_del_policy;
   
-  triple->value = tuple::mk_e(d, key, value);
+  triple->value = tuple::mk_e(b->cs.state, d, key, value);
   struct S(pair) ** oldp = (struct S(pair) **)tsearch(triple, b->_, S(cmp));
   if (oldp == NULL)
     segfault(); // run out of memory
@@ -145,9 +148,9 @@ static void S(get_key) (const void *nodep, const VISIT which, const int depth) {
 }
 
 list::data * keys(map::data * m) {
-  uintptr_t s = map::size(m);
+  uintptr_t n = map::size(m);
   struct S(header) * b = FIND_HEADER(m);
-  list::data * keys = list::mk(s);
+  list::data * keys = list::mk(b->cs.state, n);
   b->context = keys;
   twalk(b->_[0], S(get_key));
   return keys;
@@ -174,7 +177,7 @@ static void S(get_value) (const void *nodep, const VISIT which, const int depth)
 list::data * values(map::data * m) {
   uintptr_t s = map::size(m);
   struct S(header) * b = FIND_HEADER(m);
-  list::data * values = list::mk(s);
+  list::data * values = list::mk(b->cs.state, s);
   b->context = values;
   twalk(b->_[0], S(get_value));
   return values;

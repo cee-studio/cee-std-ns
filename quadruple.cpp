@@ -19,23 +19,25 @@ struct S(header) {
   void * _[4];
 };
 
-static void S(del)(void * v) {
+static void S(trace)(void * v, enum trace_action ta) {
   struct S(header) * b = FIND_HEADER(v);
   int i;
   for (i = 0; i < 4; i++)
     del_e(b->del_policies[i], b->_[i]);
-  free(b);
+  if (ta == trace_del)
+    free(b);
 }
 
-quadruple::data * mk_e (enum del_policy o[4], void * v1, void * v2, void * v3, 
-                        void * v4) {
+quadruple::data * mk_e (state::data * st, enum del_policy o[4], 
+                        void * v1, void * v2, void * v3, void * v4) {
   size_t mem_block_size = sizeof(struct S(header));
   struct S(header) * m = (struct S(header) *) malloc(mem_block_size);
   ZERO_CEE_SECT(&m->cs);
-  m->cs.del = S(del);
+  m->cs.trace = S(trace);
   m->cs.resize_method = resize_with_identity;
   m->cs.mem_block_size = mem_block_size;
   m->cs.n_product = 4;
+  m->cs.state = st;
   m->_[0] = v1;
   m->_[1] = v2;
   m->_[2] = v3;

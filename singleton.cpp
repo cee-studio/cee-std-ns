@@ -21,7 +21,7 @@ struct S(header) {
 /*
  * singleton should never be deleted, hence we pass a noop
  */
-static void S(noop)(void *p) {}
+static void S(noop)(void *p, enum trace_action ta) {}
 
 /*
  * the parameter of this function has to be a global/static 
@@ -30,7 +30,7 @@ static void S(noop)(void *p) {}
 singleton::data * init(uintptr_t tag, void *s) {
   struct S(header) * b = (struct S(header) *)s;
   ZERO_CEE_SECT(&b->cs);
-  b->cs.del = S(noop);
+  b->cs.trace = S(noop);
   b->cs.resize_method = resize_with_identity;
   b->cs.mem_block_size = 0;
   b->cs.n_product = 0;

@@ -5,7 +5,8 @@
 using namespace cee;
 
 void foo (char * x) {
-  str::data * s = str::mk("logfile %s", x);
+  state::data st = {0};
+  str::data * s = str::mk(&st, "logfile %s", x);
   printf("%p\n", s);
   printf("%s\n", (char *)s);
   del(s);
@@ -14,20 +15,21 @@ void foo (char * x) {
 
 int main () {
   /* test str */
+  state::data * st = state::mk();
   foo((char *)"hello world");
   str::data * s, * s1, * s2;
   
-  s = str::mk("the number ten: %d", 10);
+  s = str::mk(st, "the number ten: %d", 10);
   printf("%s\n", (char *)s);
   
-  s1 = str::mk("the number ten point three: %.1f", 10.3);
+  s1 = str::mk(st, "the number ten point three: %.1f", 10.3);
   printf("%s\n", (char *)s1);
   
-  s2 = str::mk("%s, %s", s, s1);
+  s2 = str::mk(st, "%s, %s", s, s1);
   printf("%s\n", s2->_);
   
   /* test list */
-  list::data *v = NULL;
+  list::data *v = list::mk(st, 10);
   
   list::append(&v, s);
   list::append(&v, s1);
@@ -47,37 +49,37 @@ int main () {
     S_T,
   };
   
-  v = NULL;
-  list::append(&v, tagged::mk(I_T, boxed::from_i32(10)));
-  list::append(&v, tagged::mk(F_T, boxed::from_float(10.1)));
-  list::append(&v, tagged::mk(S_T, str::mk("10")));
+  v = list::mk(st, 10);
+  list::append(&v, tagged::mk(st, I_T, boxed::from_i32(st, 10)));
+  list::append(&v, tagged::mk(st, F_T, boxed::from_float(st, 10.1)));
+  list::append(&v, tagged::mk(st, S_T, str::mk(st, "10")));
   del(v);
   
   /* test set */
-  set::data * st = NULL;
-  st = set::mk((cmp_fun)strcmp);
+  set::data * set = NULL;
+  set = set::mk(st, (cmp_fun)strcmp);
   
-  printf ("st: %p\n", st);
-  set::add(st, str::mk("a"));
-  set::add(st, str::mk("aabc"));
-  char * p = (char *)set::find(st, (char *)"aabc");
+  printf ("st: %p\n", set);
+  set::add(set, str::mk(st, "a"));
+  set::add(set, str::mk(st, "aabc"));
+  char * p = (char *)set::find(set, (char *)"aabc");
   printf ("%s\n", p);
   
   list::data * svals = NULL;
-  svals = set::values(st);
+  svals = set::values(set);
   for (i = 0; i < list::size(svals); i++)
     printf ("%d %s\n", i, svals->_[i]);
   
-  del(st);
+  del(set);
   del(svals);
   
   /* test map */
   map::data * mp = NULL;
-  mp = map::mk((cmp_fun)strcmp);
+  mp = map::mk(st, (cmp_fun)strcmp);
   
-  map::add(mp, str::mk("1"), boxed::from_i32(10));
-  map::add(mp, str::mk("2"), boxed::from_i32(20));
-  map::add(mp, str::mk("3"), boxed::from_i32(30));
+  map::add(mp, str::mk(st, "1"), boxed::from_i32(st, 10));
+  map::add(mp, str::mk(st, "2"), boxed::from_i32(st, 20));
+  map::add(mp, str::mk(st, "3"), boxed::from_i32(st, 30));
   
   boxed::data * t = (boxed::data *)map::find(mp, (char *)"1");
   printf ("found value %d\n", boxed::to_i32(t));
@@ -90,26 +92,28 @@ int main () {
   del(mp);
   
   /* test stack */
-  stack::data * sp = stack::mk(100);
-  stack::push(sp, str::mk("1"));
-  stack::push(sp, str::mk("2"));
-  stack::push(sp, str::mk("3"));
+  stack::data * sp = stack::mk(st, 100);
+  stack::push(sp, str::mk(st, "1"));
+  stack::push(sp, str::mk(st, "2"));
+  stack::push(sp, str::mk(st, "3"));
   printf ("%s\n", stack::top(sp, 0));
   del(sp);
   
   /* test diction */
-  dict::data * dict = dict::mk(1000);
+  dict::data * dict = dict::mk(st, 1000);
   
   for (i = 0; i < 1000; i++)
-    dict::add(dict, str::mk("%d", i)->_, str::mk("value %d", i));
+    dict::add(dict, str::mk(st, "%d", i)->_, str::mk(st, "value %d", i));
 
-  str::data * key = str::mk("999");
+  str::data * key = str::mk(st, "999");
   printf ("%s\n", dict::find(dict, key->_));
   del(key);
   del(dict);
   
   n_tuple::data * t5 = 
-    n_tuple::mk(5, str::mk("1"), str::mk("2"), str::mk("3"), str::mk("4"), str::mk("5"));
+    n_tuple::mk(st, 5, str::mk(st, "1"), 
+                str::mk(st, "2"), str::mk(st, "3"), 
+                str::mk(st, "4"), str::mk(st, "5"));
   
   for (i = 0; i < 5; i++)
     printf("%d, %s\n", i, t5->_[i]);

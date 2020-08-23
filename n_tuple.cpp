@@ -22,15 +22,16 @@ struct S(header) {
   void * _[CEE_MAX_N_TUPLE];
 };
 
-static void S(del)(void * v) {
+static void S(trace)(void * v, enum trace_action ta) {
   struct S(header) * b = FIND_HEADER(v);
   int i; 
   for (i = 0; i < b->cs.n_product; i++)
     del_e(b->del_policies[i], b->_[i]);
-  free(b);
+  if (ta == trace_del)
+    free(b);
 }
 
-static struct S(header) * cee_n_tuple_v (size_t ntuple, 
+static struct S(header) * cee_n_tuple_v (state::data * st, size_t ntuple, 
                                          enum del_policy o[], va_list ap) {
   if (ntuple > CEE_MAX_N_TUPLE)
     segfault();
@@ -38,10 +39,11 @@ static struct S(header) * cee_n_tuple_v (size_t ntuple,
   size_t mem_block_size = sizeof(struct S(header));
   struct S(header) * m = (struct S(header) *) malloc(mem_block_size);
   ZERO_CEE_SECT(&m->cs);
-  m->cs.del = S(del);
+  m->cs.trace = S(trace);
   m->cs.resize_method = resize_with_identity;
   m->cs.mem_block_size = mem_block_size;
   m->cs.n_product = ntuple;
+  m->cs.state = st;
   
   int i;
   for(i = 0; i < ntuple; i++) {
@@ -52,7 +54,7 @@ static struct S(header) * cee_n_tuple_v (size_t ntuple,
   return m;
 }
 
-n_tuple::data * mk (size_t ntuple, ...) {
+n_tuple::data * mk (state::data * st, size_t ntuple, ...) {
   va_list ap;
   va_start(ap, ntuple);
   enum del_policy * o = (enum del_policy *)malloc(ntuple * sizeof (enum del_policy));
@@ -60,7 +62,7 @@ n_tuple::data * mk (size_t ntuple, ...) {
   for (i = 0; i < ntuple; i++)
     o[i] = CEE_DEFAULT_DEL_POLICY;
   
-  struct S(header) * h = cee_n_tuple_v(ntuple, o, ap);
+  struct S(header) * h = cee_n_tuple_v(st, ntuple, o, ap);
   free(o);
   return (n_tuple::data *)(h->_);
 }

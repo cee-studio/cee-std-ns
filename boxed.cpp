@@ -20,30 +20,32 @@ struct S(header) {
   union primitive_value _[1];
 };
 
-static void S(del) (void * v) {
+static void S(trace) (void * v, enum trace_action sa) {
   struct S(header) * m = FIND_HEADER(v);
-  free(m);
+  if (sa == trace_del)
+    free(m);
 }
 
 static int S(cmp) (void * v1, void * v2) {
   struct S(header) * h1 = FIND_HEADER(v1);
   struct S(header) * h2 = FIND_HEADER(v2);
-  if (h1->cs.del == h2->cs.del)
+  if (h1->cs.trace == h2->cs.trace)
     segfault();
   else
     segfault();
 }
 
 
-static struct S(header) * S(mk_header)(enum primitive_type t) {
+static struct S(header) * S(mk_header)(state::data * s, enum primitive_type t) {
   size_t mem_block_size = sizeof(struct S(header));
   struct S(header) * b = (struct S(header) *)malloc(mem_block_size);
   ZERO_CEE_SECT(&b->cs);
-  b->cs.del = S(del);
+  b->cs.trace = S(trace);
   b->cs.resize_method = resize_with_identity;
   b->cs.mem_block_size = mem_block_size;
   b->cs.cmp = NULL;
   b->cs.n_product = 0;
+  b->cs.state = s;
   b->type = t;
   b->_[0].u64 = 0;
   return b;
@@ -58,9 +60,9 @@ static int S(cmp_double)(double v1, double v2) {
     return -1;
 }
 
-boxed::data * from_double (double d) {
+boxed::data * from_double (state::data * s, double d) {
   size_t mem_block_size = sizeof(boxed::data);
-  struct S(header) * b = S(mk_header)(primitive_f64);
+  struct S(header) * b = S(mk_header)(s, primitive_f64);
   b->cs.cmp = (void *)S(cmp_double);
   b->_[0].f64 = d;
   return (boxed::data *)b->_;
@@ -75,9 +77,9 @@ static int S(cmp_float)(float v1, float v2) {
     return -1;
 }
 
-boxed::data * from_float (float d) {
+boxed::data * from_float (state::data * s, float d) {
   size_t mem_block_size = sizeof(boxed::data);
-  struct S(header) * b = S(mk_header)(primitive_f32);
+  struct S(header) * b = S(mk_header)(s, primitive_f32);
   b->cs.cmp = (void *)S(cmp_float);
   b->_[0].f32 = d;
   return (boxed::data *)b->_;
@@ -92,9 +94,9 @@ static int S(cmp_u64)(uint64_t v1, uint64_t v2) {
     return -1;
 }
 
-boxed::data * from_u64 (uint64_t d) {
+boxed::data * from_u64 (state::data * s, uint64_t d) {
   size_t mem_block_size = sizeof(boxed::data);
-  struct S(header) * b = S(mk_header)(primitive_u64);
+  struct S(header) * b = S(mk_header)(s, primitive_u64);
   b->_[0].u64 = d;
   return (boxed::data *)b->_;
 }
@@ -108,9 +110,9 @@ static int S(cmp_u32)(uint32_t v1, uint32_t v2) {
     return -1;
 }
 
-boxed::data * from_u32 (uint32_t d) {
+boxed::data * from_u32 (state::data * s, uint32_t d) {
   size_t mem_block_size = sizeof(boxed::data);
-  struct S(header) * b = S(mk_header)(primitive_u32);
+  struct S(header) * b = S(mk_header)(s, primitive_u32);
   b->cs.cmp = (void *)S(cmp_u32);
   b->_[0].u32 = d;
   return (boxed::data *)b->_;
@@ -126,9 +128,9 @@ static int S(cmp_u16)(uint16_t v1, uint16_t v2) {
     return -1;
 }
 
-boxed::data * from_u16 (uint16_t d) {
+boxed::data * from_u16 (state::data * s, uint16_t d) {
   size_t mem_block_size = sizeof(boxed::data);
-  struct S(header) * b = S(mk_header)(primitive_u16);
+  struct S(header) * b = S(mk_header)(s, primitive_u16);
   b->cs.cmp = (void *) S(cmp_u16);
   b->_[0].u16 = d;
   return (boxed::data *)b->_;
@@ -144,9 +146,9 @@ static int S(cmp_u8)(uint8_t v1, uint8_t v2) {
     return -1;
 }
 
-boxed::data * from_u8 (uint8_t d) {
+boxed::data * from_u8 (state::data * s, uint8_t d) {
   size_t mem_block_size = sizeof(boxed::data);
-  struct S(header) * b = S(mk_header)(primitive_u8);
+  struct S(header) * b = S(mk_header)(s, primitive_u8);
   b->cs.cmp = (void *)S(cmp_u8);
   b->_[0].u8 = d;
   return (boxed::data *)b->_;
@@ -162,9 +164,9 @@ static int S(cmp_i64)(int64_t v1, int64_t v2) {
     return -1;
 }
 
-boxed::data * from_i64 (int64_t d) {
+boxed::data * from_i64 (state::data *s, int64_t d) {
   size_t mem_block_size = sizeof(boxed::data);
-  struct S(header) * b = S(mk_header)(primitive_i64);
+  struct S(header) * b = S(mk_header)(s, primitive_i64);
   b->cs.cmp = (void *)S(cmp_i64);
   b->_[0].i64 = d;
   return (boxed::data *)b->_;
@@ -179,9 +181,9 @@ static int S(cmp_i32)(int32_t v1, int32_t v2) {
     return -1;
 }
 
-boxed::data * from_i32 (int32_t d) {
+boxed::data * from_i32 (state::data * s, int32_t d) {
   size_t mem_block_size = sizeof(boxed::data);
-  struct S(header) * b = S(mk_header)(primitive_i32);
+  struct S(header) * b = S(mk_header)(s, primitive_i32);
   b->cs.cmp = (void *)S(cmp_i32);
   b->_[0].i32 = d;
   return (boxed::data *)b->_;
@@ -196,9 +198,9 @@ static int S(cmp_i16)(int16_t v1, int16_t v2) {
     return -1;
 }
 
-boxed::data * from_i16 (int16_t d) {
+boxed::data * from_i16 (state::data * s, int16_t d) {
   size_t mem_block_size = sizeof(boxed::data);
-  struct S(header) * b = S(mk_header)(primitive_i16);
+  struct S(header) * b = S(mk_header)(s, primitive_i16);
   b->cs.cmp = (void *)S(cmp_i16);
   b->_[0].i16 = d;
   return (boxed::data *)b->_;
@@ -213,9 +215,9 @@ static int S(cmp_i8)(int8_t v1, int8_t v2) {
     return -1;
 }
 
-boxed::data * from_i8 (int8_t d) {
+boxed::data * from_i8 (state::data *s, int8_t d) {
   size_t mem_block_size = sizeof(boxed::data);
-  struct S(header) * b = S(mk_header)(primitive_i8);
+  struct S(header) * b = S(mk_header)(s, primitive_i8);
   b->cs.cmp = (void *)S(cmp_i8);
   b->_[0].i8 = d;
   return (boxed::data *)b->_;

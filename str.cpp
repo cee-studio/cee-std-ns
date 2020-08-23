@@ -27,12 +27,13 @@ struct S(header) {
 
 #include "cee-resize.h"
 
-static void S(del) (void * p) {
+static void S(trace) (void * p, enum trace_action ta) {
   struct S(header) * m = FIND_HEADER(p);
-  free(m);
+  if (ta == trace_del)
+    free(m);
 }
 
-str::data * mk (const char * fmt, ...) {
+str::data * mk (state::data * st, const char * fmt, ...) {
   if (!fmt) {
     // fmt cannot be null
     // intentionally cause a segfault
@@ -52,12 +53,13 @@ str::data * mk (const char * fmt, ...) {
   struct S(header) * h = (struct S(header) *)malloc(mem_block_size);
 
   ZERO_CEE_SECT(&h->cs);
-  h->cs.del = S(del);
+  h->cs.trace = S(trace);
   h->cs.resize_method = resize_with_malloc;
   h->cs.mem_block_size = mem_block_size;
   h->cs.cmp = (void *)strcmp;
   h->cs.cmp_stop_at_null = 1;
   h->cs.n_product = 0;
+  h->cs.state = st;
   h->capacity = s - sizeof(struct S(header));
 
   va_start(ap, fmt);
@@ -65,7 +67,7 @@ str::data * mk (const char * fmt, ...) {
   return (str::data *)(h->_);
 } 
 
-str::data * mk_e (size_t n, const char * fmt, ...) {
+str::data * mk_e (state::data * st, size_t n, const char * fmt, ...) {
   uintptr_t s;
   va_list ap;
 
@@ -82,11 +84,12 @@ str::data * mk_e (size_t n, const char * fmt, ...) {
   struct S(header) * m = (struct S(header) *) malloc(mem_block_size);
 
   ZERO_CEE_SECT(&m->cs);
-  m->cs.del = S(del);
+  m->cs.trace = S(trace);
   m->cs.resize_method = resize_with_malloc;
   m->cs.mem_block_size = mem_block_size;
   m->cs.cmp = (void *)strcmp;
   m->cs.cmp_stop_at_null = 1;
+  m->cs.state = st;
   m->capacity = mem_block_size - sizeof(struct S(header));
   if (fmt) {
     va_start(ap, fmt);
@@ -98,10 +101,10 @@ str::data * mk_e (size_t n, const char * fmt, ...) {
   return (str::data *)(m->_);
 }
 
-static void S(noop)(void * v) {}
+static void S(noop)(void * v, enum trace_action ta) {}
 struct cee_block * cee_block_empty () {
   static struct S(header) singleton;
-  singleton.cs.del = S(noop);
+  singleton.cs.trace = S(noop);
   singleton.cs.resize_method = resize_with_malloc;
   singleton.cs.mem_block_size = sizeof(struct S(header));
   singleton.capacity = 1;

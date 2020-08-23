@@ -34,10 +34,11 @@ static void S(free_pair) (void * c) {
   free(c);
 }
 
-static void S(del)(void * p) {
+static void S(trace)(void * p, enum trace_action ta) {
   struct S(header) * h = FIND_HEADER (p);
   tdestroy(h->_[0], S(free_pair));
-  free(h);
+  if (ta == trace_del)
+    free(h);
 }
 
 
@@ -56,13 +57,13 @@ static int S(cmp) (const void * v1, const void * v2) {
  * its two elements are decided by cmp
  * dt: specify how its elements should be handled if the set is deleted.
  */
-set::data * mk_e (enum del_policy o, int (*cmp)(const void *, const void *)) 
+set::data * mk_e (state::data * s, enum del_policy o, int (*cmp)(const void *, const void *)) 
 {
   struct S(header) * m = (struct S(header) *)malloc(sizeof(struct S(header)));
   m->cmp = cmp;
   m->size = 0;
   ZERO_CEE_SECT(&m->cs);
-  m->cs.del = S(del);
+  m->cs.trace = S(trace);
   m->cs.resize_method = resize_with_identity;
   m->cs.n_product = 1;
   m->context = NULL;
@@ -71,8 +72,8 @@ set::data * mk_e (enum del_policy o, int (*cmp)(const void *, const void *))
   return (set::data *)m->_;
 }
 
-set::data * mk (int (*cmp)(const void *, const void *)) {
-  return set::mk_e(CEE_DEFAULT_DEL_POLICY, cmp);
+set::data * mk (state::data * s, int (*cmp)(const void *, const void *)) {
+  return set::mk_e(s, CEE_DEFAULT_DEL_POLICY, cmp);
 }
 
 size_t size (set::data * s) {
@@ -156,7 +157,7 @@ static void S(get_value) (const void *nodep, const VISIT which, const int depth)
 list::data * values(set::data * m) {
   uintptr_t s = set::size(m);
   struct S(header) * h = FIND_HEADER(m);
-  h->context = list::mk(s);
+  h->context = list::mk(h->cs.state, s);
   use_realloc(h->context);
   twalk(h->_[0], S(get_value));
   return (list::data *)h->context;
@@ -176,11 +177,11 @@ void * remove(set::data *m, void * key) {
   }
 }
 
-set::data * union_set (set::data * s1, set::data * s2) {
+set::data * union_set (state::data * s, set::data * s1, set::data * s2) {
   struct S(header) * h1 = FIND_HEADER(s1);
   struct S(header) * h2 = FIND_HEADER(s2);
   if (h1->cmp == h2->cmp) {
-    set::data * s0 = set::mk(h1->cmp);
+    set::data * s0 = set::mk(s, h1->cmp);
     list::data * v1 = set::values(s1);
     list::data * v2 = set::values(s2);
     int i;

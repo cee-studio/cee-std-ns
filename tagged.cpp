@@ -19,17 +19,18 @@ struct S(header) {
   struct tagged::data _;
 };
 
-static void S(del) (void * v) {
+static void S(trace) (void * v, enum trace_action ta) {
   struct S(header) * m = FIND_HEADER(v);
   del_e(m->del_policy, m->_.ptr._);
-  free(m);
+  if (ta == trace_del)
+    free(m);
 }
 
-tagged::data * mk_e (enum del_policy o, uintptr_t tag, void *p) {
+tagged::data * mk_e (state::data * st, enum del_policy o, uintptr_t tag, void *p) {
   size_t mem_block_size = sizeof(struct S(header));
   struct S(header) * b = (struct S(header) *)malloc(mem_block_size);
   ZERO_CEE_SECT(&b->cs);
-  b->cs.del = S(del);
+  b->cs.trace = S(trace);
   b->cs.resize_method = resize_with_identity;
   b->cs.mem_block_size = mem_block_size;
   b->_.tag = tag;
@@ -39,8 +40,8 @@ tagged::data * mk_e (enum del_policy o, uintptr_t tag, void *p) {
   return &b->_;
 }
 
-tagged::data * mk (uintptr_t tag, void *p) {
-  return mk_e(CEE_DEFAULT_DEL_POLICY, tag, p);
+tagged::data * mk (state::data * st, uintptr_t tag, void *p) {
+  return mk_e(st, CEE_DEFAULT_DEL_POLICY, tag, p);
 }
     
   }

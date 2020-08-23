@@ -28,12 +28,18 @@ struct S(header) {
 
 #include "cee-resize.h"
 
-static void S(del) (void * p) {
+static void S(trace) (void * p, enum trace_action sa) {
   struct S(header) * m = (struct S(header) *)FIND_HEADER(p);
-  free(m);
+  if (sa == trace_del)
+    free(m);
+  else 
+    m->cs.gc_mark = sa;
 }
+    
+static void S(mark) (void * p) {
+};
 
-void * mk (size_t n) {
+void * mk (state::data * s, size_t n) {
   size_t mem_block_size;
   va_list ap;
   
@@ -42,7 +48,7 @@ void * mk (size_t n) {
   
   ZERO_CEE_SECT(&m->cs);
   m->del_policy = dp_del_rc;
-  m->cs.del = S(del);
+  m->cs.trace = S(trace);
   m->cs.resize_method = resize_with_malloc;
   m->cs.mem_block_size = mem_block_size;
   m->cs.cmp = (void *)memcmp;
