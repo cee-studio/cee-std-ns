@@ -23,14 +23,30 @@ struct S(header) {
   struct sect cs;
   void * _[];
 };
+    
+#include "cee-resize.h"    
 
 static void S(trace) (void * v, enum trace_action ta) {
   struct S(header) * m = FIND_HEADER(v);
   int i;
-  for (i = 0; i < m->used; i++)
-    del_e(m->del_policy, m->_[i]);
-  if (ta == trace_del)
-    free(m);
+  
+  switch (ta) {
+    case trace_del_no_follow:
+      S(de_chain)(m);
+      free(m);
+      break;
+    case trace_del_follow:
+      for (i = 0; i < m->used; i++)
+        del_e(m->del_policy, m->_[i]);
+      S(de_chain)(m);
+      free(m);
+      break;
+    default:
+      m->cs.gc_mark = ta;
+      for (i = 0; i < m->used; i++)
+        trace(m->_[i], ta);
+      break;
+  }
 }
 
 stack::data * mk_e (state::data * st, enum del_policy o, size_t size) {
@@ -40,8 +56,10 @@ stack::data * mk_e (state::data * st, enum del_policy o, size_t size) {
   m->used = 0;
   m->top = (0-1);
   m->del_policy = o;
+  
   ZERO_CEE_SECT(&m->cs);
-  m->cs.state = st;
+  S(chain)(m, st);
+  
   m->cs.trace = S(trace);
   m->cs.mem_block_size = mem_block_size;
   return (stack::data *)(m->_);

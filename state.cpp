@@ -19,26 +19,94 @@ struct S(header) {
   struct data _;
 };
 
-static void S(trace) (void * v, enum trace_action sa) {
+static void S(trace) (void * v, enum trace_action ta) {
   struct S(header) * m = FIND_HEADER(v);
-  if (sa == trace_del)
-    free(m);
+  switch (ta) {
+    case trace_del_follow: 
+    {
+      // following this tracing chain but not the relations
+      struct sect * tail = m->_.trace_tail;
+      while (tail != &m->cs) {
+        trace(tail + 1, trace_del_no_follow);
+        tail = m->_.trace_tail;
+      }
+      free(m);
+      break;
+    }
+    case trace_del_no_follow: 
+    {
+      // TODO detach the this state from all memory blocks
+      free(m);
+      break;
+    }
+    default:
+    {
+      m->cs.gc_mark = ta;
+      trace(m->_.roots, ta);
+      break;
+    }
+  }
+}
+  
+  
+static void S(sweep) (void * v, enum trace_action ta) {
+  struct S(header) * m = FIND_HEADER(v);
+  struct sect * head  = &m->cs;
+  while (head != NULL) {
+    struct sect * next = head->trace_next;
+    if (head->gc_mark != ta) 
+      trace(head + 1, trace_del_no_follow);
+    head = next;
+  }
 }
 
+static int S(cmp) (const void * v1, const void * v2) {
+  uintptr_t u1 = (uintptr_t) v1;
+  uintptr_t u2 = (uintptr_t) v2;
+  return u1 - u2;
+}
+
+
+  
 state::data * mk() {
   size_t memblock_size = sizeof(struct S(header));
   struct S(header) * h = (struct S(header) *)malloc(memblock_size);
   ZERO_CEE_SECT(&h->cs);
   h->cs.trace = S(trace);
-  h->_.trace_dict = NULL;
-  h->_.trace_env = NULL;
-  h->_.trace_map = NULL;
-  h->_.trace_str = NULL;
-  h->_.trace_list = NULL;
+  h->_.trace_tail = &h->cs; // points to self;
+  
+  set::data * roots = set::mk(&h->_, S(cmp));
+  h->_.roots = roots;
+  h->_.next_mark = 1;
   return &h->_;
+}  
+  
+void add_gc_root(state::data * s, void * key) {
+  set::add(s->roots, key);
 }
   
+void remove_gc_root(state::data * s, void * key) {
+  set::remove(s->roots, key);
+}
   
+void gc (state::data * s) {
+  struct S(header) * h = FIND_HEADER(s);
+  int mark = trace_mark + s->next_mark;
+  
+  trace(s, (enum trace_action)mark);
+  list::data * l = set::values(s->roots);
+  for (int i; i < list::size(l); i++)
+    trace(l->_[i], (enum trace_action) mark);
+  del(l);
+  
+  S(sweep)(s, (enum trace_action) mark);
+  
+  if (s->next_mark == 0) {
+    s->next_mark = 1;
+  } else {
+    s->next_mark = 0;
+  }
+}
   
   }
 }

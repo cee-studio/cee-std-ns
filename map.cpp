@@ -19,26 +19,54 @@ struct S(header) {
   uintptr_t size;
   enum del_policy key_del_policy;
   enum del_policy val_del_policy;
+  enum trace_action ta;
   struct sect cs;
   void * _[1];
 };
+    
+#include "cee-resize.h"
 
 struct S(pair) {
   tuple::data * value;
   struct S(header) * h;
 };
 
-static void S(free_pair)(void * c) {
+static void S(free_pair_follow)(void * c) {
   struct S(pair) * p = (struct S(pair) *)c;
   del(p->value);
   free(p);
 }
+    
+static void S(free_pair_no_follow)(void * c) {
+  struct S(pair) * p = (struct S(pair) *)c;
+  free(p);
+}
+    
+static void S(trace_pair)(void *c) {
+  struct S(pair) * p = (struct S(pair) *)c;
+  trace(p->value, p->h->ta);
+}
+
 
 static void S(trace)(void * p, enum trace_action ta) {
   struct S(header) * b = FIND_HEADER (p);
-  tdestroy(b->_[0], S(free_pair));
-  if (ta == trace_del)
-    free(b);
+  b->ta = ta;
+  switch (ta) {
+    case trace_del_no_follow:
+      tdestroy(b->_[0], S(free_pair_no_follow));
+      S(de_chain)(b);
+      free(b);
+      break;
+    case trace_del_follow:
+      tdestroy(b->_[0], S(free_pair_follow));
+      S(de_chain)(b);
+      free(b);
+      break;
+    default:
+      b->cs.gc_mark = ta;
+      tdestroy(b->_[0], S(trace_pair));
+      break;
+  }
 }
 
 static int S(cmp) (const void * v1, const void * v2) {
@@ -50,21 +78,23 @@ static int S(cmp) (const void * v1, const void * v2) {
     segfault();
 }
 
-map::data * mk_e (state::data * st, 
-                  enum del_policy o[2], int (*cmp)(const void *, const void *)) {
+map::data * mk_e (state::data * st, enum del_policy o[2], 
+                  int (*cmp)(const void *, const void *)) {
   size_t mem_block_size = sizeof(struct S(header));
   struct S(header) * m = (struct S(header) *)malloc(mem_block_size);
   m->context = NULL;
   m->cmp = cmp;
   m->size = 0;
   ZERO_CEE_SECT(&m->cs);
+  S(chain)(m, st);
+  
   m->cs.trace = S(trace);
   m->cs.resize_method = resize_with_identity;
   m->cs.mem_block_size = mem_block_size;
   m->cs.cmp = 0;
   m->cs.cmp_stop_at_null = 0;
   m->cs.n_product = 2; // key, value
-  m->cs.state = st;
+  
   m->key_del_policy = o[0];
   m->val_del_policy = o[1];
   m->_[0] = 0;
@@ -95,7 +125,7 @@ void add(map::data * m, void * key, void * value) {
   if (oldp == NULL)
     segfault(); // run out of memory
   else if (*oldp != triple) 
-    S(free_pair)(triple);
+    S(free_pair_follow)(triple);
   else
     b->size ++;
   return;
@@ -123,7 +153,7 @@ void * remove(map::data * m, void * key) {
     b->size --;
     struct S(pair) * t = (struct S(pair) *)*oldp;
     tuple::data * ret = t->value;
-    S(free_pair)(t);
+    S(free_pair_follow)(t);
     decr_indegree(b->key_del_policy, ret->_[0]);
     decr_indegree(b->val_del_policy, ret->_[1]);
     return ret->_[1];

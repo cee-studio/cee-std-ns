@@ -19,26 +19,53 @@ struct S(header) {
   int (*cmp)(const void *l, const void *r);
   uintptr_t size;
   enum del_policy del_policy;
+  enum trace_action ta;
   struct sect cs;
   void * _[1];
 };
 
+#include "cee-resize.h"
+    
 struct S(pair) {
   void * value;
   struct S(header) * h;
 };
 
-static void S(free_pair) (void * c) {
+static void S(free_pair_no_follow) (void * c) {
+  struct S(header) * h = ((struct S(pair) *)c)->h;
+  free(c);
+}
+
+    
+static void S(free_pair_follow) (void * c) {
   struct S(header) * h = ((struct S(pair) *)c)->h;
   del_e(h->del_policy, ((struct S(pair) *)c)->value);
   free(c);
 }
+    
+static void S(trace_pair)(void *c) {
+  struct S(header) * h = ((struct S(pair) *)c)->h;
+  trace(((struct S(pair) *)c)->value, h->ta);
+}
 
 static void S(trace)(void * p, enum trace_action ta) {
   struct S(header) * h = FIND_HEADER (p);
-  tdestroy(h->_[0], S(free_pair));
-  if (ta == trace_del)
-    free(h);
+  switch (ta) {
+    case trace_del_no_follow:
+      tdestroy(h->_[0], S(free_pair_no_follow));
+      S(de_chain)(h);
+      free(h);
+      break;
+    case trace_del_follow:
+      tdestroy(h->_[0], S(free_pair_follow));
+      S(de_chain)(h);
+      free(h);
+      break;
+    default:
+      h->cs.gc_mark = ta;
+      tdestroy(h->_[0], S(trace_pair));
+      break;
+  }
 }
 
 
@@ -57,12 +84,15 @@ static int S(cmp) (const void * v1, const void * v2) {
  * its two elements are decided by cmp
  * dt: specify how its elements should be handled if the set is deleted.
  */
-set::data * mk_e (state::data * s, enum del_policy o, int (*cmp)(const void *, const void *)) 
+set::data * mk_e (state::data * st, enum del_policy o, 
+                  int (*cmp)(const void *, const void *)) 
 {
   struct S(header) * m = (struct S(header) *)malloc(sizeof(struct S(header)));
   m->cmp = cmp;
   m->size = 0;
   ZERO_CEE_SECT(&m->cs);
+  S(chain)(m, st);
+  
   m->cs.trace = S(trace);
   m->cs.resize_method = resize_with_identity;
   m->cs.n_product = 1;

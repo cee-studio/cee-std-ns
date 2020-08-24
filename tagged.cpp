@@ -18,21 +18,38 @@ struct S(header) {
   struct sect cs;
   struct tagged::data _;
 };
+    
+#include "cee-resize.h"    
 
 static void S(trace) (void * v, enum trace_action ta) {
   struct S(header) * m = FIND_HEADER(v);
-  del_e(m->del_policy, m->_.ptr._);
-  if (ta == trace_del)
-    free(m);
+  switch (ta) {
+    case trace_del_no_follow:
+      S(de_chain)(m);
+      free(m);
+      break;
+    case trace_del_follow:
+      del_e(m->del_policy, m->_.ptr._);
+      S(de_chain)(m);
+      free(m);
+      break;
+    default:
+      m->cs.gc_mark = ta;
+      trace(m->_.ptr._, ta);
+      break;
+  }
 }
 
 tagged::data * mk_e (state::data * st, enum del_policy o, uintptr_t tag, void *p) {
   size_t mem_block_size = sizeof(struct S(header));
   struct S(header) * b = (struct S(header) *)malloc(mem_block_size);
   ZERO_CEE_SECT(&b->cs);
+  S(chain)(b, st);
+  
   b->cs.trace = S(trace);
   b->cs.resize_method = resize_with_identity;
   b->cs.mem_block_size = mem_block_size;
+  
   b->_.tag = tag;
   b->_.ptr._ = p;
   b->del_policy = o;

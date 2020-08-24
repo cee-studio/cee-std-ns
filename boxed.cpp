@@ -19,11 +19,21 @@ struct S(header) {
   struct sect cs;
   union primitive_value _[1];
 };
+    
+#include "cee-resize.h"
 
-static void S(trace) (void * v, enum trace_action sa) {
+static void S(trace) (void * v, enum trace_action ta) {
   struct S(header) * m = FIND_HEADER(v);
-  if (sa == trace_del)
-    free(m);
+  switch(ta) {
+    case trace_del_follow:
+    case trace_del_no_follow:
+      S(de_chain)(m);
+      free(m);
+      break;
+    default:
+      m->cs.gc_mark = ta;
+      break;
+  }
 }
 
 static int S(cmp) (void * v1, void * v2) {
@@ -40,12 +50,14 @@ static struct S(header) * S(mk_header)(state::data * s, enum primitive_type t) {
   size_t mem_block_size = sizeof(struct S(header));
   struct S(header) * b = (struct S(header) *)malloc(mem_block_size);
   ZERO_CEE_SECT(&b->cs);
+  S(chain)(b, s);
+  
   b->cs.trace = S(trace);
   b->cs.resize_method = resize_with_identity;
   b->cs.mem_block_size = mem_block_size;
   b->cs.cmp = NULL;
   b->cs.n_product = 0;
-  b->cs.state = s;
+  
   b->type = t;
   b->_[0].u64 = 0;
   return b;

@@ -25,25 +25,42 @@ struct S(header) {
 
 #include "cee-resize.h"
 
-static void S(trace) (void * v, enum trace_action sa) {
+static void S(trace) (void * v, enum trace_action ta) {
   struct S(header) * m = FIND_HEADER(v);
   int i;
-  for (i = 0; i < m->size; i++)
-    del_e(m->del_policy, m->_[i]);
-  if (sa == trace_del)
-    free(m);
+  
+  switch(ta) {
+    case trace_del_no_follow:
+      S(de_chain)(m);
+      free(m);
+      break;
+    case trace_del_follow:
+      for (i = 0; i < m->size; i++)
+        del_e(m->del_policy, m->_[i]);
+      S(de_chain)(m);
+      free(m);
+      break;
+    default:
+      m->cs.gc_mark = ta;
+      for (i = 0; i < m->size; i++)
+        trace(m->_[i], ta);
+      break;
+  }
 }
 
-list::data * mk_e (state::data * s, enum del_policy o, size_t cap) {
+list::data * mk_e (state::data * st, enum del_policy o, size_t cap) {
   size_t mem_block_size = sizeof(struct S(header)) + cap * sizeof(void *);
   struct S(header) * m = (struct S(header) *)malloc(mem_block_size);
   m->capacity = cap;
   m->size = 0;
   m->del_policy = o;
   ZERO_CEE_SECT(&m->cs);
+  S(chain)(m, st);
+  
   m->cs.trace = S(trace);
   m->cs.resize_method = resize_with_malloc;
   m->cs.mem_block_size = mem_block_size;
+  
   return (list::data *)(m->_);
 }
 
@@ -61,12 +78,12 @@ list::data * append (list::data ** l, void *e) {
     size_t new_mem_block_size = m->cs.mem_block_size + extra_cap * sizeof(void *);
     struct S(header) * m1 = S(resize)(m, new_mem_block_size);
     m1->capacity = capacity + extra_cap;
+    *l = (list::data *)m1->_;
     m = m1;
   }
   m->_[m->size] = e;
   m->size ++;
   incr_indegree(m->del_policy, e);
-  *l = (list::data *)m->_;
   return *l;
 }
 
@@ -84,6 +101,7 @@ list::data * insert(state::data * s, list::data ** l, size_t index, void *e) {
     size_t new_mem_block_size = m->cs.mem_block_size + extra_cap * sizeof(void *);
     struct S(header) * m1 = S(resize)(m, new_mem_block_size);
     m1->capacity = capacity + extra_cap;
+    *l = (list::data *)m1->_;
     m = m1;
   }
   int i;
@@ -93,7 +111,6 @@ list::data * insert(state::data * s, list::data ** l, size_t index, void *e) {
   m->_[index] = e;
   m->size ++;
   incr_indegree(m->del_policy, e);
-  *l = (list::data *)m->_;
   return *l;
 }
 

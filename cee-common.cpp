@@ -21,7 +21,6 @@ void cee::trace (void *p, enum trace_action ta) {
   cs->trace(p, ta);
 }
 
-
 /*
  * a generic resource delete function for all cee_* pointers
  */
@@ -29,7 +28,7 @@ void cee::del(void *p) {
   if (!p) cee::segfault();
   
   struct sect * cs = FIND_SECT(p);
-  cs->trace(p, trace_del);
+  cs->trace(p, trace_del_follow);
 }
 
 void cee::del_ref(void *p) {
@@ -44,7 +43,7 @@ void cee::del_ref(void *p) {
   */
   if (cs->retained) return;
   
-  if (!cs->in_degree) cs->trace(p, trace_del);
+  if (!cs->in_degree) cs->trace(p, trace_del_follow);
 }
 
 void cee::use_realloc(void * p) {
@@ -142,4 +141,3 @@ void cee::del_e (enum del_policy o, void *p) {
       break;
   }
 }
-

@@ -29,8 +29,16 @@ struct S(header) {
 
 static void S(trace) (void * p, enum trace_action ta) {
   struct S(header) * m = FIND_HEADER(p);
-  if (ta == trace_del)
-    free(m);
+  switch (ta) {
+    case trace_del_no_follow:
+    case trace_del_follow:
+      S(de_chain)(m);
+      free(m);
+      break;
+    default:
+      m->cs.gc_mark = ta;
+      break;
+  }
 }
 
 str::data * mk (state::data * st, const char * fmt, ...) {
@@ -53,17 +61,20 @@ str::data * mk (state::data * st, const char * fmt, ...) {
   struct S(header) * h = (struct S(header) *)malloc(mem_block_size);
 
   ZERO_CEE_SECT(&h->cs);
+  S(chain)(h, st);
+  
   h->cs.trace = S(trace);
   h->cs.resize_method = resize_with_malloc;
   h->cs.mem_block_size = mem_block_size;
   h->cs.cmp = (void *)strcmp;
   h->cs.cmp_stop_at_null = 1;
   h->cs.n_product = 0;
-  h->cs.state = st;
+  
   h->capacity = s - sizeof(struct S(header));
 
   va_start(ap, fmt);
   vsnprintf(h->_, s, fmt, ap);
+  
   return (str::data *)(h->_);
 } 
 
@@ -89,7 +100,9 @@ str::data * mk_e (state::data * st, size_t n, const char * fmt, ...) {
   m->cs.mem_block_size = mem_block_size;
   m->cs.cmp = (void *)strcmp;
   m->cs.cmp_stop_at_null = 1;
-  m->cs.state = st;
+  
+  S(chain)(m, st);
+  
   m->capacity = mem_block_size - sizeof(struct S(header));
   if (fmt) {
     va_start(ap, fmt);

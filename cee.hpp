@@ -17,14 +17,15 @@ typedef int (*cmp_fun) (const void *, const void *);
 
 enum resize_method {
   resize_with_identity = 0, // resize with identity function
-  resize_with_malloc = 1,
-  resize_with_realloc = 2
+  resize_with_malloc = 1,   // resize with malloc  (safe, but leak)
+  resize_with_realloc = 2   // resize with realloc (probably unsafe)
 };
 
-  
+
 enum trace_action {
-  trace_del = 0,
-  trace_mark,
+  trace_del_no_follow = 0,
+  trace_del_follow, // trace points-to graph and delete each node
+  trace_mark,       // trace points-to graph and mark each node
 };
 
 /*
@@ -77,7 +78,8 @@ struct sect {
   uint8_t n_product;              // n-ary (no more than 256) product type
   uint16_t in_degree;             // the number of cee objects points to this object
   state::data * state; 
-  void * trace_next;              // used for chaining cee::_::data to be traced
+  struct sect * trace_next;       // used for chaining cee::_::data to be traced
+  struct sect * trace_prev;       // used for chaining cee::_::data to be traced
   uintptr_t mem_block_size;       // the size of a memory block enclosing this struct
   void *cmp;                      // compare two memory blocks
   void (*trace)(void *, enum trace_action);// the object specific scan function
@@ -552,9 +554,18 @@ namespace closure {
 
 extern void use_realloc(void *);
 extern void use_malloc(void *);
+  
+  /*
+   * release the memory block pointed by p immediately
+   * it may follow the points-to edges to delete
+   *    the in-degree (reference count) of targeted memory blocks
+   *    or targeted memory blocks
+   *
+   */
 extern void del (void *);
 extern void del_ref(void *);
 extern void del_e (enum del_policy o, void * p);
+
 extern void trace (void *p, enum trace_action ta);
 extern int cmp (void *, void *);
 
@@ -570,20 +581,18 @@ extern uint16_t get_rc (void *);
  * call this to cause segfault for non-recoverable errors
  */
 extern void segfault() __attribute__((noreturn));
-  
+
 namespace state {
   struct data {
-    str::data  * trace_str;
-    list::data * trace_list;
-    map::data  * trace_map;
-    env::data  * trace_env;
-    dict::data * trace_dict;
+    struct sect * trace_tail;
+    set::data   * roots;
+    int           next_mark;
   };
   extern state::data * mk();
-  
+  extern void add_gc_root(state::data *, void *);
+  extern void remove_gc_root(state::data *, void *);
+  extern void gc(state::data *);
 };
-  
-  
   
 }
 #endif // CEE_H

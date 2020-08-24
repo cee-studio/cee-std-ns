@@ -5,11 +5,14 @@
 using namespace cee;
 
 void foo (char * x) {
-  state::data st = {0};
-  str::data * s = str::mk(&st, "logfile %s", x);
+  state::data * st = state::mk();
+  str::data * s = str::mk(st, "logfile %s", x);
   printf("%p\n", s);
   printf("%s\n", (char *)s);
-  del(s);
+  
+  // optional 
+  // del(s);
+  del(st);
   return;
 }
 
@@ -35,12 +38,13 @@ int main () {
   list::append(&v, s1);
   list::append(&v, s2);
   
-  printf("v.size %u\n", list::size(v));
+  printf("v.size %uz\n", list::size(v));
   int i;
   for (i = 0; i < list::size(v); i++)
     printf ("%d:%s\n", i, (char *)v->_[i]);
   
-  del(v);
+  // optional
+  // del(v);
   
   /* heterogeneous list [ 10, 10.0, "10"] */
   enum T {
@@ -53,7 +57,9 @@ int main () {
   list::append(&v, tagged::mk(st, I_T, boxed::from_i32(st, 10)));
   list::append(&v, tagged::mk(st, F_T, boxed::from_float(st, 10.1)));
   list::append(&v, tagged::mk(st, S_T, str::mk(st, "10")));
-  del(v);
+  
+  // optional
+  // del(v);
   
   /* test set */
   set::data * set = NULL;
@@ -70,8 +76,9 @@ int main () {
   for (i = 0; i < list::size(svals); i++)
     printf ("%d %s\n", i, svals->_[i]);
   
-  del(set);
-  del(svals);
+  // optional
+  // del(set);
+  // del(svals);
   
   /* test map */
   map::data * mp = NULL;
@@ -88,8 +95,9 @@ int main () {
   for (i = 0; i < list::size(keys); i++)
     printf ("[%d] key:%s\n", i, (char *)keys->_[i]);
   
-  del(keys);
-  del(mp);
+  // optional
+  // del(keys);
+  // del(mp);
   
   /* test stack */
   stack::data * sp = stack::mk(st, 100);
@@ -97,7 +105,9 @@ int main () {
   stack::push(sp, str::mk(st, "2"));
   stack::push(sp, str::mk(st, "3"));
   printf ("%s\n", stack::top(sp, 0));
-  del(sp);
+  
+  // optional
+  // del(sp);
   
   /* test diction */
   dict::data * dict = dict::mk(st, 1000);
@@ -107,8 +117,10 @@ int main () {
 
   str::data * key = str::mk(st, "999");
   printf ("%s\n", dict::find(dict, key->_));
-  del(key);
-  del(dict);
+  
+  // optional
+  // del(key);
+  // del(dict);
   
   n_tuple::data * t5 = 
     n_tuple::mk(st, 5, str::mk(st, "1"), 
@@ -118,6 +130,9 @@ int main () {
   for (i = 0; i < 5; i++)
     printf("%d, %s\n", i, t5->_[i]);
   
-  del(t5);
+  // optional
+  // del(t5);
+  state::gc(st);
+  //del(st);
   return 0;
 }

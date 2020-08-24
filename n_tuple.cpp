@@ -21,14 +21,31 @@ struct S(header) {
   struct sect cs;
   void * _[CEE_MAX_N_TUPLE];
 };
-
+    
+#include "cee-resize.h"
+    
 static void S(trace)(void * v, enum trace_action ta) {
   struct S(header) * b = FIND_HEADER(v);
   int i; 
-  for (i = 0; i < b->cs.n_product; i++)
-    del_e(b->del_policies[i], b->_[i]);
-  if (ta == trace_del)
-    free(b);
+  
+  switch (ta) {
+    case trace_del_no_follow:
+      S(de_chain)(b);
+      free(b);
+      break;
+    case trace_del_follow:
+      for (i = 0; i < b->cs.n_product; i++)
+        del_e(b->del_policies[i], b->_[i]);
+      
+      S(de_chain)(b);
+      free(b);
+      break;
+    default:
+      b->cs.gc_mark = ta;
+      for (i = 0; i < b->cs.n_product; i++)
+        trace(b->_[i], ta);
+      break;
+  }
 }
 
 static struct S(header) * cee_n_tuple_v (state::data * st, size_t ntuple, 
@@ -39,11 +56,12 @@ static struct S(header) * cee_n_tuple_v (state::data * st, size_t ntuple,
   size_t mem_block_size = sizeof(struct S(header));
   struct S(header) * m = (struct S(header) *) malloc(mem_block_size);
   ZERO_CEE_SECT(&m->cs);
+  S(chain)(m, st);
+  
   m->cs.trace = S(trace);
   m->cs.resize_method = resize_with_identity;
   m->cs.mem_block_size = mem_block_size;
   m->cs.n_product = ntuple;
-  m->cs.state = st;
   
   int i;
   for(i = 0; i < ntuple; i++) {
@@ -66,6 +84,6 @@ n_tuple::data * mk (state::data * st, size_t ntuple, ...) {
   free(o);
   return (n_tuple::data *)(h->_);
 }
-    
+
   }
 }

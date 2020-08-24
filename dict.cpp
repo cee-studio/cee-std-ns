@@ -25,14 +25,30 @@ struct S(header) {
   struct hsearch_data _[1];
 };
 
+#include "cee-resize.h"
 
-static void S(trace)(void *d, enum trace_action sa) {
+static void S(trace)(void *d, enum trace_action ta) {
   struct S(header) * m = FIND_HEADER(d);
-  hdestroy_r(m->_);
-  del_e(m->del_policy, m->keys);
-  del_e(m->del_policy, m->vals);
-  if (sa == trace_del)
-    free(m);
+  
+  switch (ta) {
+    case trace_del_no_follow:
+      hdestroy_r(m->_);
+      S(de_chain)(m);
+      free(m);
+      break;
+    case trace_del_follow:
+      del_e(m->del_policy, m->keys);
+      del_e(m->del_policy, m->vals);
+      hdestroy_r(m->_);
+      S(de_chain)(m);
+      free(m);
+      break;
+    default:
+      m->cs.gc_mark = ta;
+      trace(m->keys, ta);
+      trace(m->vals, ta);
+      break;
+  }
 }
 
 dict::data * mk_e (state::data * s, enum del_policy o, size_t size) {
@@ -47,15 +63,17 @@ dict::data * mk_e (state::data * s, enum del_policy o, size_t size) {
   
   m->size = size;
   ZERO_CEE_SECT(&m->cs);
-  m->cs.state = s;
+  S(chain)(m, s);
+  
   m->cs.trace = S(trace);
   m->cs.mem_block_size = mem_block_size;
   m->cs.resize_method = resize_with_identity;
   m->cs.n_product = 2; // key:str, value
   size_t  hsize = (size_t)((float)size * 1.25);
   memset(m->_, 0, sizeof(struct hsearch_data));
-  if (hcreate_r(hsize, m->_))
+  if (hcreate_r(hsize, m->_)) {
     return (dict::data *)(m->_);
+  }
   else {
     del(m->keys);
     del(m->vals);
