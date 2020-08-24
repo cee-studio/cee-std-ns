@@ -112,10 +112,10 @@ int main () {
   /* test diction */
   dict::data * dict = dict::mk(st, 1000);
   
-  for (i = 0; i < 1000; i++)
+  for (i = 0; i < 10; i++)
     dict::add(dict, str::mk(st, "%d", i)->_, str::mk(st, "value %d", i));
 
-  str::data * key = str::mk(st, "999");
+  str::data * key = str::mk(st, "9");
   printf ("%s\n", dict::find(dict, key->_));
   
   // optional
@@ -123,18 +123,18 @@ int main () {
   // del(dict);
   
   n_tuple::data * t5 = 
-    n_tuple::mk(st, 5, str::mk(st, "1"), 
-                str::mk(st, "2"), str::mk(st, "3"), 
+    n_tuple::mk(st, 5, str::mk(st, "1"), str::mk(st, "2"), str::mk(st, "3"), 
                 str::mk(st, "4"), str::mk(st, "5"));
   
   for (i = 0; i < 5; i++)
     printf("%d, %s\n", i, t5->_[i]);
   
   state::add_gc_root(st, t5);
+  state::add_gc_root(st, sp);
   // optional
   
-  state::gc(st);
-  del(t5);
+  //state::gc(st);
+  //del(t5);
   //del(st);
   return 0;
 }
