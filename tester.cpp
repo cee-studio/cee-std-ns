@@ -130,9 +130,11 @@ int main () {
   for (i = 0; i < 5; i++)
     printf("%d, %s\n", i, t5->_[i]);
   
+  state::add_gc_root(st, t5);
   // optional
-  // del(t5);
+  
   state::gc(st);
+  del(t5);
   //del(st);
   return 0;
 }

@@ -32,20 +32,29 @@ struct S(pair) {
 };
 
 static void S(free_pair_no_follow) (void * c) {
-  struct S(header) * h = ((struct S(pair) *)c)->h;
   free(c);
 }
 
     
 static void S(free_pair_follow) (void * c) {
-  struct S(header) * h = ((struct S(pair) *)c)->h;
-  del_e(h->del_policy, ((struct S(pair) *)c)->value);
+  struct S(pair) * p = (struct S(pair) *)c;
+  del_e(p->h->del_policy, p->value);
   free(c);
 }
     
-static void S(trace_pair)(void *c) {
-  struct S(header) * h = ((struct S(pair) *)c)->h;
-  trace(((struct S(pair) *)c)->value, h->ta);
+static void S(trace_pair) (const void *nodep, const VISIT which, const int depth) {
+  struct S(pair) * p;
+  struct S(header) * h;
+  switch (which) 
+  {
+    case preorder:
+    case leaf:
+      p = (S(pair) *)*(void **)nodep;
+      trace(p->value, p->h->ta);
+      break;
+    default:
+      break;
+  }
 }
 
 static void S(trace)(void * p, enum trace_action ta) {
@@ -63,7 +72,8 @@ static void S(trace)(void * p, enum trace_action ta) {
       break;
     default:
       h->cs.gc_mark = ta;
-      tdestroy(h->_[0], S(trace_pair));
+      h->ta = ta;
+      twalk(h->_[0], S(trace_pair));
       break;
   }
 }

@@ -41,30 +41,39 @@ static void S(free_pair_no_follow)(void * c) {
   struct S(pair) * p = (struct S(pair) *)c;
   free(p);
 }
-    
-static void S(trace_pair)(void *c) {
-  struct S(pair) * p = (struct S(pair) *)c;
-  trace(p->value, p->h->ta);
-}
-
-
-static void S(trace)(void * p, enum trace_action ta) {
-  struct S(header) * b = FIND_HEADER (p);
-  b->ta = ta;
-  switch (ta) {
-    case trace_del_no_follow:
-      tdestroy(b->_[0], S(free_pair_no_follow));
-      S(de_chain)(b);
-      free(b);
-      break;
-    case trace_del_follow:
-      tdestroy(b->_[0], S(free_pair_follow));
-      S(de_chain)(b);
-      free(b);
+        
+static void S(trace_pair) (const void *nodep, const VISIT which, const int depth) {
+  struct S(pair) * p;
+  struct S(header) * h;
+  switch (which) 
+  {
+    case preorder:
+    case leaf:
+      p = (S(pair) *)*(void **)nodep;
+      trace(p->value, p->h->ta);
       break;
     default:
-      b->cs.gc_mark = ta;
-      tdestroy(b->_[0], S(trace_pair));
+      break;
+  }
+}
+
+static void S(trace)(void * p, enum trace_action ta) {
+  struct S(header) * h = FIND_HEADER (p);
+  switch (ta) {
+    case trace_del_no_follow:
+      tdestroy(h->_[0], S(free_pair_no_follow));
+      S(de_chain)(h);
+      free(h);
+      break;
+    case trace_del_follow:
+      tdestroy(h->_[0], S(free_pair_follow));
+      S(de_chain)(h);
+      free(h);
+      break;
+    default:
+      h->cs.gc_mark = ta;
+      h->ta = ta;
+      twalk(h->_[0], S(trace_pair));
       break;
   }
 }
