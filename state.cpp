@@ -61,13 +61,17 @@ static void S(sweep) (void * v, enum trace_action ta) {
 }
 
 static int S(cmp) (const void * v1, const void * v2) {
-  uintptr_t u1 = (uintptr_t) v1;
-  uintptr_t u2 = (uintptr_t) v2;
-  return u1 - u2;
+  intptr_t u1 = (intptr_t) v1;
+  intptr_t u2 = (intptr_t) v2;
+  if (u1 > u2)
+    return -1;
+  else if (u1 == u2)
+    return 0;
+  else
+    return -1;
 }
 
 
-  
 state::data * mk() {
   size_t memblock_size = sizeof(struct S(header));
   struct S(header) * h = (struct S(header) *)malloc(memblock_size);
@@ -75,7 +79,7 @@ state::data * mk() {
   h->cs.trace = S(trace);
   h->_.trace_tail = &h->cs; // points to self;
   
-  set::data * roots = set::mk(&h->_, S(cmp));
+  set::data * roots = set::mk_e(&h->_, dp_noop, S(cmp));
   h->_.roots = roots;
   h->_.next_mark = 1;
   return &h->_;

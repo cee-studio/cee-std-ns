@@ -71,6 +71,10 @@ int main () {
   char * p = (char *)set::find(set, (char *)"aabc");
   printf ("%s\n", p);
   
+  set::remove(set, str::mk(st, "aabc"));
+  p = (char *)set::find(set, (char *)"aabc");
+  printf ("%s\n", p);
+  
   list::data * svals = NULL;
   svals = set::values(set);
   for (i = 0; i < list::size(svals); i++)
@@ -133,8 +137,9 @@ int main () {
   state::add_gc_root(st, sp);
   // optional
   
-  //state::gc(st);
-  //del(t5);
-  //del(st);
+  state::gc(st);
+  // del(t5);
+  del(st);
+  printf ("exit\n");
   return 0;
 }

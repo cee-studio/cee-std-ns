@@ -83,7 +83,7 @@ static int S(cmp) (const void * v1, const void * v2) {
   struct S(pair) * t1 = (struct S(pair) *) v1;
   struct S(pair) * t2 = (struct S(pair) *) v2;
   if (t1->h == t2->h)
-  	return t1->h->cmp(t1->value, t2->value);
+    return t1->h->cmp(t1->value, t2->value);
   else
     segfault();
 }
@@ -132,14 +132,14 @@ bool empty (set::data * s) {
  */
 void add(set::data *m, void * val) {
   struct S(header) * h = FIND_HEADER(m);
-  void ** c = (void **)malloc(sizeof(void *) * 2);
-  c[0] = val;
-  c[1] = h;
+  struct S(pair) * c = (struct S(pair) *)malloc(sizeof(struct S(pair)));
+  c->value = val;
+  c->h = h;
   void *** oldp = (void ***) tsearch(c, h->_, S(cmp));
   
   if (oldp == NULL)
     segfault();
-  else if (*oldp != c)
+  else if (*oldp != (void **)c)
     free(c);
   else {
     h->size ++;
