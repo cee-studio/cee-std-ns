@@ -71,7 +71,7 @@ static void S(trace)(void * p, enum trace_action ta) {
       free(h);
       break;
     default:
-      h->cs.gc_mark = ta;
+      h->cs.gc_mark = ta - trace_mark;
       h->ta = ta;
       twalk(h->_[0], S(trace_pair));
       break;

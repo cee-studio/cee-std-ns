@@ -44,7 +44,7 @@ int main () {
     printf ("%d:%s\n", i, (char *)v->_[i]);
   
   // optional
-  // del(v);
+  del(v);
   
   /* heterogeneous list [ 10, 10.0, "10"] */
   enum T {
@@ -59,7 +59,7 @@ int main () {
   list::append(&v, tagged::mk(st, S_T, str::mk(st, "10")));
   
   // optional
-  // del(v);
+  del(v);
   
   /* test set */
   set::data * set = NULL;
@@ -100,8 +100,8 @@ int main () {
     printf ("[%d] key:%s\n", i, (char *)keys->_[i]);
   
   // optional
-  // del(keys);
-  // del(mp);
+  //del(keys);
+  //del(mp);
   
   /* test stack */
   stack::data * sp = stack::mk(st, 100);
@@ -123,8 +123,8 @@ int main () {
   printf ("%s\n", dict::find(dict, key->_));
   
   // optional
-  // del(key);
-  // del(dict);
+  del(key);
+  del(dict);
   
   n_tuple::data * t5 = 
     n_tuple::mk(st, 5, str::mk(st, "1"), str::mk(st, "2"), str::mk(st, "3"), 
@@ -135,6 +135,8 @@ int main () {
   
   state::add_gc_root(st, t5);
   state::add_gc_root(st, sp);
+  state::add_gc_root(st, mp);
+  state::add_gc_root(st, set);
   // optional
   
   state::gc(st);

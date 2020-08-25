@@ -71,13 +71,13 @@ enum del_policy {
  *
  */
 struct sect {
-  uint8_t cmp_stop_at_null:1;     // 0: compare all bytes, otherwise stop at '\0'
-  uint8_t resize_method:2;        // three values: identity, malloc, realloc
-  uint8_t retained:1;             // if it is retained, in_degree is ignored
-  uint8_t gc_mark:2;              // used for mark & sweep gc
-  uint8_t n_product;              // n-ary (no more than 256) product type
+  uint8_t  cmp_stop_at_null:1;    // 0: compare all bytes, otherwise stop at '\0'
+  uint8_t  resize_method:2;       // three values: identity, malloc, realloc
+  uint8_t  retained:1;            // if it is retained, in_degree is ignored
+  uint8_t  gc_mark:2;             // used for mark & sweep gc
+  uint8_t  n_product;             // n-ary (no more than 256) product type
   uint16_t in_degree;             // the number of cee objects points to this object
-  state::data * state; 
+  state::data * state;            // the gc state under which this block is allocated
   struct sect * trace_next;       // used for chaining cee::_::data to be traced
   struct sect * trace_prev;       // used for chaining cee::_::data to be traced
   uintptr_t mem_block_size;       // the size of a memory block enclosing this struct
@@ -585,7 +585,10 @@ extern void segfault() __attribute__((noreturn));
 namespace state {
   struct data {
     struct sect * trace_tail;
-    set::data   * roots;
+    // all memory blocks are reachables from the roots
+    // are considered alive
+    set::data   * roots; 
+    // the mark value for the next iteration
     int           next_mark;
   };
   extern state::data * mk();

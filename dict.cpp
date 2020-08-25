@@ -44,7 +44,7 @@ static void S(trace)(void *d, enum trace_action ta) {
       free(m);
       break;
     default:
-      m->cs.gc_mark = ta;
+      m->cs.gc_mark = ta - trace_mark;
       trace(m->keys, ta);
       trace(m->vals, ta);
       break;

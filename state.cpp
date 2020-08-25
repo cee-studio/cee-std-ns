@@ -41,7 +41,7 @@ static void S(trace) (void * v, enum trace_action ta) {
     }
     default:
     {
-      m->cs.gc_mark = ta;
+      m->cs.gc_mark = ta - trace_mark;
       trace(m->_.roots, ta);
       break;
     }
@@ -54,7 +54,7 @@ static void S(sweep) (void * v, enum trace_action ta) {
   struct sect * head  = &m->cs;
   while (head != NULL) {
     struct sect * next = head->trace_next;
-    if (head->gc_mark != ta) 
+    if (head->gc_mark != ta - trace_mark)
       trace(head + 1, trace_del_no_follow);
     head = next;
   }
@@ -98,11 +98,6 @@ void gc (state::data * s) {
   int mark = trace_mark + s->next_mark;
   
   trace(s, (enum trace_action)mark);
-  list::data * l = set::values(s->roots);
-  for (int i; i < list::size(l); i++)
-    trace(l->_[i], (enum trace_action) mark);
-  del(l);
-  
   S(sweep)(s, (enum trace_action) mark);
   
   if (s->next_mark == 0) {
