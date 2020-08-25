@@ -81,13 +81,13 @@ enum del_policy {
  *
  */
 struct sect {
-  uint8_t cmp_stop_at_null:1;     // 0: compare all bytes, otherwise stop at '\0'
-  uint8_t resize_method:2;        // three values: identity, malloc, realloc
-  uint8_t retained:1;             // if it is retained, in_degree is ignored
-  uint8_t gc_mark:2;              // used for mark & sweep gc
-  uint8_t n_product;              // n-ary (no more than 256) product type
+  uint8_t  cmp_stop_at_null:1;    // 0: compare all bytes, otherwise stop at '\0'
+  uint8_t  resize_method:2;       // three values: identity, malloc, realloc
+  uint8_t  retained:1;            // if it is retained, in_degree is ignored
+  uint8_t  gc_mark:2;             // used for mark & sweep gc
+  uint8_t  n_product;             // n-ary (no more than 256) product type
   uint16_t in_degree;             // the number of cee objects points to this object
-  state::data * state; 
+  state::data * state;            // the gc state under which this block is allocated
   struct sect * trace_next;       // used for chaining cee::_::data to be traced
   struct sect * trace_prev;       // used for chaining cee::_::data to be traced
   uintptr_t mem_block_size;       // the size of a memory block enclosing this struct
@@ -595,7 +595,10 @@ extern void segfault() __attribute__((noreturn));
 namespace state {
   struct data {
     struct sect * trace_tail;
-    set::data   * roots;
+    // all memory blocks are reachables from the roots
+    // are considered alive
+    set::data   * roots; 
+    // the mark value for the next iteration
     int           next_mark;
   };
   extern state::data * mk();
@@ -777,7 +780,7 @@ static void _cee_boxed_trace (void * v, enum trace_action ta) {
       free(m);
       break;
     default:
-      m->cs.gc_mark = ta;
+      m->cs.gc_mark = ta - trace_mark;
       break;
   }
 }
@@ -1117,7 +1120,7 @@ static void _cee_str_trace (void * p, enum trace_action ta) {
       free(m);
       break;
     default:
-      m->cs.gc_mark = ta;
+      m->cs.gc_mark = ta - trace_mark;
       break;
   }
 }
@@ -1316,7 +1319,7 @@ static void _cee_dict_trace(void *d, enum trace_action ta) {
       free(m);
       break;
     default:
-      m->cs.gc_mark = ta;
+      m->cs.gc_mark = ta - trace_mark;
       trace(m->keys, ta);
       trace(m->vals, ta);
       break;
@@ -1468,7 +1471,7 @@ static void _cee_map_trace(void * p, enum trace_action ta) {
       free(h);
       break;
     default:
-      h->cs.gc_mark = ta;
+      h->cs.gc_mark = ta - trace_mark;
       h->ta = ta;
       twalk(h->_[0], _cee_map_trace_pair);
       break;
@@ -1696,7 +1699,7 @@ static void _cee_set_trace(void * p, enum trace_action ta) {
       free(h);
       break;
     default:
-      h->cs.gc_mark = ta;
+      h->cs.gc_mark = ta - trace_mark;
       h->ta = ta;
       twalk(h->_[0], _cee_set_trace_pair);
       break;
@@ -1706,7 +1709,7 @@ static int _cee_set_cmp (const void * v1, const void * v2) {
   struct _cee_set_pair * t1 = (struct _cee_set_pair *) v1;
   struct _cee_set_pair * t2 = (struct _cee_set_pair *) v2;
   if (t1->h == t2->h)
-   return t1->h->cmp(t1->value, t2->value);
+    return t1->h->cmp(t1->value, t2->value);
   else
     segfault();
 }
@@ -1748,13 +1751,13 @@ bool empty (set::data * s) {
  */
 void add(set::data *m, void * val) {
   struct _cee_set_header * h = (struct _cee_set_header *)((void *)((char *)(m) - (__builtin_offsetof(struct _cee_set_header, _))));
-  void ** c = (void **)malloc(sizeof(void *) * 2);
-  c[0] = val;
-  c[1] = h;
+  struct _cee_set_pair * c = (struct _cee_set_pair *)malloc(sizeof(struct _cee_set_pair));
+  c->value = val;
+  c->h = h;
   void *** oldp = (void ***) tsearch(c, h->_, _cee_set_cmp);
   if (oldp == NULL)
     segfault();
-  else if (*oldp != c)
+  else if (*oldp != (void **)c)
     free(c);
   else {
     h->size ++;
@@ -1913,7 +1916,7 @@ static void _cee_stack_trace (void * v, enum trace_action ta) {
       free(m);
       break;
     default:
-      m->cs.gc_mark = ta;
+      m->cs.gc_mark = ta - trace_mark;
       for (i = 0; i < m->used; i++)
         trace(m->_[i], ta);
       break;
@@ -2052,7 +2055,7 @@ static void _cee_tuple_trace(void * v, enum trace_action ta) {
       free(b);
       break;
     default:
-      b->cs.gc_mark = ta;
+      b->cs.gc_mark = ta - trace_mark;
       for (i = 0; i < 2; i++)
         trace(b->_[i], ta);
       break;
@@ -2145,7 +2148,7 @@ static void _cee_triple_trace(void * v, enum trace_action ta) {
       free(b);
       break;
     default:
-      b->cs.gc_mark = ta;
+      b->cs.gc_mark = ta - trace_mark;
       for (i = 0; i < 3; i++)
         trace(b->_[i], ta);
       break;
@@ -2241,7 +2244,7 @@ static void _cee_quadruple_trace(void * v, enum trace_action ta) {
       free(b);
       break;
     default:
-      b->cs.gc_mark = ta;
+      b->cs.gc_mark = ta - trace_mark;
       for (i = 0; i < 4; i++)
         trace(b->_[i], ta);
       break;
@@ -2336,7 +2339,7 @@ static void _cee_list_trace (void * v, enum trace_action ta) {
       free(m);
       break;
     default:
-      m->cs.gc_mark = ta;
+      m->cs.gc_mark = ta - trace_mark;
       for (i = 0; i < m->size; i++)
         trace(m->_[i], ta);
       break;
@@ -2482,7 +2485,7 @@ static void _cee_tagged_trace (void * v, enum trace_action ta) {
       free(m);
       break;
     default:
-      m->cs.gc_mark = ta;
+      m->cs.gc_mark = ta - trace_mark;
       trace(m->_.ptr._, ta);
       break;
   }
@@ -2665,7 +2668,7 @@ static void _cee_block_trace (void * p, enum trace_action ta) {
       free(m);
       break;
     default:
-      m->cs.gc_mark = ta;
+      m->cs.gc_mark = ta - trace_mark;
       break;
   }
 }
@@ -2751,7 +2754,7 @@ static void _cee_n_tuple_trace(void * v, enum trace_action ta) {
       free(b);
       break;
     default:
-      b->cs.gc_mark = ta;
+      b->cs.gc_mark = ta - trace_mark;
       for (i = 0; i < b->cs.n_product; i++)
         trace(b->_[i], ta);
       break;
@@ -2853,7 +2856,7 @@ static void _cee_env_trace (void * v, enum trace_action ta) {
       free(h);
       break;
     default:
-      h->cs.gc_mark = ta;
+      h->cs.gc_mark = ta - trace_mark;
       trace(h->_.outer, ta);
       trace(h->_.vars, ta);
       break;
@@ -2909,7 +2912,7 @@ static void _cee_state_trace (void * v, enum trace_action ta) {
     }
     default:
     {
-      m->cs.gc_mark = ta;
+      m->cs.gc_mark = ta - trace_mark;
       trace(m->_.roots, ta);
       break;
     }
@@ -2920,15 +2923,20 @@ static void _cee_state_sweep (void * v, enum trace_action ta) {
   struct sect * head = &m->cs;
   while (head != NULL) {
     struct sect * next = head->trace_next;
-    if (head->gc_mark != ta)
+    if (head->gc_mark != ta - trace_mark)
       trace(head + 1, trace_del_no_follow);
     head = next;
   }
 }
 static int _cee_state_cmp (const void * v1, const void * v2) {
-  uintptr_t u1 = (uintptr_t) v1;
-  uintptr_t u2 = (uintptr_t) v2;
-  return u1 - u2;
+  intptr_t u1 = (intptr_t) v1;
+  intptr_t u2 = (intptr_t) v2;
+  if (u1 > u2)
+    return -1;
+  else if (u1 == u2)
+    return 0;
+  else
+    return -1;
 }
 state::data * mk() {
   size_t memblock_size = sizeof(struct _cee_state_header);
@@ -2936,7 +2944,7 @@ state::data * mk() {
   do{ memset(&h->cs, 0, sizeof(struct cee::sect)); } while(0);;
   h->cs.trace = _cee_state_trace;
   h->_.trace_tail = &h->cs; // points to self;
-  set::data * roots = set::mk(&h->_, _cee_state_cmp);
+  set::data * roots = set::mk_e(&h->_, dp_noop, _cee_state_cmp);
   h->_.roots = roots;
   h->_.next_mark = 1;
   return &h->_;
@@ -2951,10 +2959,6 @@ void gc (state::data * s) {
   struct _cee_state_header * h = (struct _cee_state_header *)((void *)((char *)(s) - (__builtin_offsetof(struct _cee_state_header, _))));
   int mark = trace_mark + s->next_mark;
   trace(s, (enum trace_action)mark);
-  list::data * l = set::values(s->roots);
-  for (int i; i < list::size(l); i++)
-    trace(l->_[i], (enum trace_action) mark);
-  del(l);
   _cee_state_sweep(s, (enum trace_action) mark);
   if (s->next_mark == 0) {
     s->next_mark = 1;
