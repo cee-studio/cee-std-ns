@@ -5,7 +5,7 @@
 using namespace cee;
 
 void foo (char * x) {
-  state::data * st = state::mk();
+  state::data * st = state::mk(10);
   str::data * s = str::mk(st, "logfile %s", x);
   printf("%p\n", s);
   printf("%s\n", (char *)s);
@@ -18,7 +18,7 @@ void foo (char * x) {
 
 int main () {
   /* test str */
-  state::data * st = state::mk();
+  state::data * st = state::mk(10);
   foo((char *)"hello world");
   str::data * s, * s1, * s2;
   

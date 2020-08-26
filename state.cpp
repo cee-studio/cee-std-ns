@@ -43,12 +43,12 @@ static void S(trace) (void * v, enum trace_action ta) {
     {
       m->cs.gc_mark = ta - trace_mark;
       trace(m->_.roots, ta);
+      trace(m->_.stack, ta);
       break;
     }
   }
 }
-  
-  
+
 static void S(sweep) (void * v, enum trace_action ta) {
   struct S(header) * m = FIND_HEADER(v);
   struct sect * head  = &m->cs;
@@ -72,7 +72,7 @@ static int S(cmp) (const void * v1, const void * v2) {
 }
 
 
-state::data * mk() {
+state::data * mk(size_t n) {
   size_t memblock_size = sizeof(struct S(header));
   struct S(header) * h = (struct S(header) *)malloc(memblock_size);
   ZERO_CEE_SECT(&h->cs);
@@ -82,8 +82,9 @@ state::data * mk() {
   set::data * roots = set::mk_e(&h->_, dp_noop, S(cmp));
   h->_.roots = roots;
   h->_.next_mark = 1;
+  h->_.stack = stack::mk(&h->_, n);
   return &h->_;
-}  
+}
   
 void add_gc_root(state::data * s, void * key) {
   set::add(s->roots, key);
