@@ -594,6 +594,7 @@ extern void segfault() __attribute__((noreturn));
 
 namespace state {
   struct data {
+    stack::data * stack;  // the stack
     struct sect * trace_tail;
     // all memory blocks are reachables from the roots
     // are considered alive
@@ -601,7 +602,10 @@ namespace state {
     // the mark value for the next iteration
     int           next_mark;
   };
-  extern state::data * mk();
+  /*
+   * the size of stack
+   */
+  extern state::data * mk(size_t n);
   extern void add_gc_root(state::data *, void *);
   extern void remove_gc_root(state::data *, void *);
   extern void gc(state::data *);
@@ -2914,6 +2918,7 @@ static void _cee_state_trace (void * v, enum trace_action ta) {
     {
       m->cs.gc_mark = ta - trace_mark;
       trace(m->_.roots, ta);
+      trace(m->_.stack, ta);
       break;
     }
   }
@@ -2938,7 +2943,7 @@ static int _cee_state_cmp (const void * v1, const void * v2) {
   else
     return -1;
 }
-state::data * mk() {
+state::data * mk(size_t n) {
   size_t memblock_size = sizeof(struct _cee_state_header);
   struct _cee_state_header * h = (struct _cee_state_header *)malloc(memblock_size);
   do{ memset(&h->cs, 0, sizeof(struct cee::sect)); } while(0);;
@@ -2947,6 +2952,7 @@ state::data * mk() {
   set::data * roots = set::mk_e(&h->_, dp_noop, _cee_state_cmp);
   h->_.roots = roots;
   h->_.next_mark = 1;
+  h->_.stack = stack::mk(&h->_, n);
   return &h->_;
 }
 void add_gc_root(state::data * s, void * key) {

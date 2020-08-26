@@ -584,6 +584,7 @@ extern void segfault() __attribute__((noreturn));
 
 namespace state {
   struct data {
+    stack::data * stack;  // the stack
     struct sect * trace_tail;
     // all memory blocks are reachables from the roots
     // are considered alive
@@ -591,7 +592,10 @@ namespace state {
     // the mark value for the next iteration
     int           next_mark;
   };
-  extern state::data * mk();
+  /*
+   * the size of stack
+   */
+  extern state::data * mk(size_t n);
   extern void add_gc_root(state::data *, void *);
   extern void remove_gc_root(state::data *, void *);
   extern void gc(state::data *);
