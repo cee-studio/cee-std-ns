@@ -434,7 +434,7 @@ namespace singleton {
     tag_t  tag;
     uintptr_t val;
   };
-  extern singleton::data * init(uintptr_t tag, void *);
+  extern singleton::data * init(void *, uintptr_t tag, uintptr_t val);
   #define CEE_SINGLETON_SIZE (sizeof(struct cee::singleton::data) + sizeof(struct cee::sect))
 
 }
@@ -2528,7 +2528,7 @@ static void _cee_singleton_noop(void *p, enum trace_action ta) {}
  * the parameter of this function has to be a global/static 
  * uintptr_t array of two elements
  */
-singleton::data * init(uintptr_t tag, void *s) {
+singleton::data * init(void *s, uintptr_t tag, uintptr_t val) {
   struct _cee_singleton_header * b = (struct _cee_singleton_header *)s;
   do{ memset(&b->cs, 0, sizeof(struct cee::sect)); } while(0);;
   b->cs.trace = _cee_singleton_noop;
@@ -2536,7 +2536,7 @@ singleton::data * init(uintptr_t tag, void *s) {
   b->cs.mem_block_size = 0;
   b->cs.n_product = 0;
   b->_ = tag;
-  b->val = 0;
+  b->val = val;
   return (singleton::data *)&(b->_);
 }
   }

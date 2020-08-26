@@ -27,7 +27,7 @@ static void S(noop)(void *p, enum trace_action ta) {}
  * the parameter of this function has to be a global/static 
  * uintptr_t array of two elements
  */
-singleton::data * init(uintptr_t tag, void *s) {
+singleton::data * init(void *s, uintptr_t tag, uintptr_t val) {
   struct S(header) * b = (struct S(header) *)s;
   ZERO_CEE_SECT(&b->cs);
   b->cs.trace = S(noop);
@@ -35,7 +35,7 @@ singleton::data * init(uintptr_t tag, void *s) {
   b->cs.mem_block_size = 0;
   b->cs.n_product = 0;
   b->_ = tag;
-  b->val = 0;
+  b->val = val;
   return (singleton::data *)&(b->_);
 }
     

@@ -424,7 +424,7 @@ namespace singleton {
     tag_t  tag;
     uintptr_t val;
   };
-  extern singleton::data * init(uintptr_t tag, void *);
+  extern singleton::data * init(void *, uintptr_t tag, uintptr_t val);
   #define CEE_SINGLETON_SIZE (sizeof(struct cee::singleton::data) + sizeof(struct cee::sect))
 
 }
