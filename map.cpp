@@ -127,11 +127,11 @@ void add(map::data * m, void * key, void * value) {
 void * find(map::data * m, void * key) {
   struct S(header) * b = FIND_HEADER(m);
   tuple::data t = { key, 0 };
-  void **oldp = (void **)musl_tfind(b, &t, b->_, S(cmp));
-  if (oldp == NULL)
+  tuple::data **pp = (tuple::data **)musl_tfind(b, &t, b->_, S(cmp));
+  if (pp == NULL)
     return NULL;
   else {
-    tuple::data * p = (tuple::data *)*oldp;
+    tuple::data * p = *pp;
     return p->_[1];
   }
 }

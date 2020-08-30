@@ -68,9 +68,12 @@ int main () {
   
   printf ("st: %p\n", set1);
   set::add(set1, str::mk(st, "a"));
-  set::add(set1, str::mk(st, "aabc"));
+  void * sx = str::mk(st, "aabc");
+  printf ("sx:%p\n", sx);
+  set::add(set1, sx);
+  
   char * p = (char *)set::find(set1, (char *)"aabc");
-  printf ("%s\n", p);
+  printf ("%p %s\n", p, p);
   
   set::remove(set1, str::mk(st, "aabc"));
   p = (char *)set::find(set1, (char *)"aabc");
@@ -137,6 +140,7 @@ int main () {
   for (i = 0; i < 5; i++)
     printf("%d, %s\n", i, t5->_[i]);
   
+  // del(t5);
   printf("t5:%p\n", t5);
   state::add_gc_root(st, t5);
   printf("%uz\n", set::size(st->roots));
@@ -170,8 +174,8 @@ int main () {
   printf("%zu\n", set::size(st->roots));
   state::gc(st);
   
-  // del(t5);
-  // del(st);
+  
+  del(st);
   printf ("exit\n");
   return 0;
 }

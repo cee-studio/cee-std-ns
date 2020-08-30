@@ -1516,11 +1516,11 @@ void add(map::data * m, void * key, void * value) {
 void * find(map::data * m, void * key) {
   struct _cee_map_header * b = (struct _cee_map_header *)((void *)((char *)(m) - (__builtin_offsetof(struct _cee_map_header, _))));
   tuple::data t = { key, 0 };
-  void **oldp = (void **)musl_tfind(b, &t, b->_, _cee_map_cmp);
-  if (oldp == NULL)
+  tuple::data **pp = (tuple::data **)musl_tfind(b, &t, b->_, _cee_map_cmp);
+  if (pp == NULL)
     return NULL;
   else {
-    tuple::data * p = (tuple::data *)*oldp;
+    tuple::data * p = *pp;
     return p->_[1];
   }
 }
@@ -1746,11 +1746,11 @@ void cee_set_clear (set::data * s) {
 }
 void * find(set::data *m, void * key) {
   struct _cee_set_header * h = (struct _cee_set_header *)((void *)((char *)(m) - (__builtin_offsetof(struct _cee_set_header, _))));
-  void *oldp = (void *) musl_tfind(h, key, h->_, _cee_set_cmp);
+  void **oldp = (void **) musl_tfind(h, key, h->_, _cee_set_cmp);
   if (oldp == NULL)
     return NULL;
   else
-    return oldp;
+    return *oldp;
 }
 static void _cee_set_get_value (void * cxt, const void *nodep, const VISIT which, const int depth) {
   void * p;

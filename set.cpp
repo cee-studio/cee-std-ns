@@ -150,11 +150,11 @@ void cee_set_clear (set::data * s) {
 
 void * find(set::data *m, void * key) {
   struct S(header) * h = FIND_HEADER(m);
-  void *oldp = (void *) musl_tfind(h, key, h->_, S(cmp));
+  void **oldp = (void **) musl_tfind(h, key, h->_, S(cmp));
   if (oldp == NULL)
     return NULL;
   else
-    return oldp;
+    return *oldp;
 }
 
 static void S(get_value) (void * cxt, const void *nodep, const VISIT which, const int depth) {
