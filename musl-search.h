@@ -36,7 +36,7 @@ void *musl_lfind(const void *, const void *, size_t *, size_t,
 void *musl_tdelete(const void *__restrict, void **__restrict, int(*)(const void *, const void *));
 void *musl_tfind(const void *, void *const *, int(*)(const void *, const void *));
 void *musl_tsearch(const void *, void **, int (*)(const void *, const void *));
-void musl_twalk(const void *, void (*)(const void *, VISIT, int));
+void musl_twalk(void * cxt, const void *, void (*)(void *, const void *, VISIT, int));
 
 
 struct musl_qelem {
@@ -44,6 +44,6 @@ struct musl_qelem {
 	char q_data[1];
 };
 
-void musl_tdestroy(void *, void (*)(void *));
+void musl_tdestroy(void * cxt, void *, void (*)(void * cxt, void *));
 
 #endif // MUSL_SEARCH

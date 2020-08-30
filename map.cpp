@@ -31,18 +31,18 @@ struct S(pair) {
   struct S(header) * h;
 };
 
-static void S(free_pair_follow)(void * c) {
+static void S(free_pair_follow)(void * cxt, void * c) {
   struct S(pair) * p = (struct S(pair) *)c;
   del(p->value);
   free(p);
 }
     
-static void S(free_pair_no_follow)(void * c) {
+static void S(free_pair_no_follow)(void * cxt, void * c) {
   struct S(pair) * p = (struct S(pair) *)c;
   free(p);
 }
         
-static void S(trace_pair) (const void *nodep, const VISIT which, const int depth) {
+static void S(trace_pair) (void * cxt, const void *nodep, const VISIT which, const int depth) {
   struct S(pair) * p;
   struct S(header) * h;
   switch (which) 
@@ -50,7 +50,7 @@ static void S(trace_pair) (const void *nodep, const VISIT which, const int depth
     case preorder:
     case leaf:
       p = (S(pair) *)*(void **)nodep;
-      trace(p->value, p->h->ta);
+      trace(p->value, *(enum trace_action *)cxt);
       break;
     default:
       break;
@@ -61,19 +61,19 @@ static void S(trace)(void * p, enum trace_action ta) {
   struct S(header) * h = FIND_HEADER (p);
   switch (ta) {
     case trace_del_no_follow:
-      musl_tdestroy(h->_[0], S(free_pair_no_follow));
+      musl_tdestroy(NULL, h->_[0], S(free_pair_no_follow));
       S(de_chain)(h);
       free(h);
       break;
     case trace_del_follow:
-      musl_tdestroy(h->_[0], S(free_pair_follow));
+      musl_tdestroy((void *)&ta, h->_[0], S(free_pair_follow));
       S(de_chain)(h);
       free(h);
       break;
     default:
       h->cs.gc_mark = ta - trace_mark;
       h->ta = ta;
-      musl_twalk(h->_[0], S(trace_pair));
+      musl_twalk(&ta, h->_[0], S(trace_pair));
       break;
   }
 }
@@ -134,7 +134,7 @@ void add(map::data * m, void * key, void * value) {
   if (oldp == NULL)
     segfault(); // run out of memory
   else if (*oldp != triple) 
-    S(free_pair_follow)(triple);
+    S(free_pair_follow)(NULL, triple);
   else
     b->size ++;
   return;
@@ -162,14 +162,14 @@ void * remove(map::data * m, void * key) {
     b->size --;
     struct S(pair) * t = (struct S(pair) *)*oldp;
     tuple::data * ret = t->value;
-    S(free_pair_follow)(t);
+    S(free_pair_follow)(NULL, t);
     decr_indegree(b->key_del_policy, ret->_[0]);
     decr_indegree(b->val_del_policy, ret->_[1]);
     return ret->_[1];
   }
 }
 
-static void S(get_key) (const void *nodep, const VISIT which, const int depth) {
+static void S(get_key) (void * cxt, const void *nodep, const VISIT which, const int depth) {
   struct S(pair) * p;
   struct S(header) * h;
   list::data * keys;
@@ -179,7 +179,7 @@ static void S(get_key) (const void *nodep, const VISIT which, const int depth) {
     case leaf:
       p = *(struct S(pair) **)nodep;
       h = p->h;
-      list::append((list::data **)&h->context, p->value->_[0]);
+      list::append((list::data **)cxt, p->value->_[0]);
       break;
     default:
       break;
@@ -191,12 +191,12 @@ list::data * keys(map::data * m) {
   struct S(header) * b = FIND_HEADER(m);
   list::data * keys = list::mk(b->cs.state, n);
   b->context = keys;
-  musl_twalk(b->_[0], S(get_key));
+  musl_twalk(&keys, b->_[0], S(get_key));
   return keys;
 }
 
 
-static void S(get_value) (const void *nodep, const VISIT which, const int depth) {
+static void S(get_value) (void * cxt, const void *nodep, const VISIT which, const int depth) {
   struct S(pair) * p;
   struct S(header) * h;
   list::data * values;
@@ -206,7 +206,7 @@ static void S(get_value) (const void *nodep, const VISIT which, const int depth)
     case leaf:
       p = (struct S(pair) *)*(void **)nodep;
       h = p->h;
-      list::append((list::data **)&h->context, p->value->_[1]);
+      list::append((list::data **)cxt, p->value->_[1]);
       break;
     default:
       break;
@@ -218,7 +218,7 @@ list::data * values(map::data * m) {
   struct S(header) * b = FIND_HEADER(m);
   list::data * values = list::mk(b->cs.state, s);
   b->context = values;
-  musl_twalk(b->_[0], S(get_value));
+  musl_twalk(&values, b->_[0], S(get_value));
   return values;
 }
   

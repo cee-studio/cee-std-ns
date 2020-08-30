@@ -1431,16 +1431,16 @@ struct _cee_map_pair {
   tuple::data * value;
   struct _cee_map_header * h;
 };
-static void _cee_map_free_pair_follow(void * c) {
+static void _cee_map_free_pair_follow(void * cxt, void * c) {
   struct _cee_map_pair * p = (struct _cee_map_pair *)c;
   del(p->value);
   free(p);
 }
-static void _cee_map_free_pair_no_follow(void * c) {
+static void _cee_map_free_pair_no_follow(void * cxt, void * c) {
   struct _cee_map_pair * p = (struct _cee_map_pair *)c;
   free(p);
 }
-static void _cee_map_trace_pair (const void *nodep, const VISIT which, const int depth) {
+static void _cee_map_trace_pair (void * cxt, const void *nodep, const VISIT which, const int depth) {
   struct _cee_map_pair * p;
   struct _cee_map_header * h;
   switch (which)
@@ -1448,7 +1448,7 @@ static void _cee_map_trace_pair (const void *nodep, const VISIT which, const int
     case preorder:
     case leaf:
       p = (_cee_map_pair *)*(void **)nodep;
-      trace(p->value, p->h->ta);
+      trace(p->value, *(enum trace_action *)cxt);
       break;
     default:
       break;
@@ -1458,19 +1458,19 @@ static void _cee_map_trace(void * p, enum trace_action ta) {
   struct _cee_map_header * h = (struct _cee_map_header *)((void *)((char *)(p) - (__builtin_offsetof(struct _cee_map_header, _))));
   switch (ta) {
     case trace_del_no_follow:
-      musl_tdestroy(h->_[0], _cee_map_free_pair_no_follow);
+      musl_tdestroy(NULL, h->_[0], _cee_map_free_pair_no_follow);
       _cee_map_de_chain(h);
       free(h);
       break;
     case trace_del_follow:
-      musl_tdestroy(h->_[0], _cee_map_free_pair_follow);
+      musl_tdestroy((void *)&ta, h->_[0], _cee_map_free_pair_follow);
       _cee_map_de_chain(h);
       free(h);
       break;
     default:
       h->cs.gc_mark = ta - trace_mark;
       h->ta = ta;
-      musl_twalk(h->_[0], _cee_map_trace_pair);
+      musl_twalk(&ta, h->_[0], _cee_map_trace_pair);
       break;
   }
 }
@@ -1522,7 +1522,7 @@ void add(map::data * m, void * key, void * value) {
   if (oldp == NULL)
     segfault(); // run out of memory
   else if (*oldp != triple)
-    _cee_map_free_pair_follow(triple);
+    _cee_map_free_pair_follow(NULL, triple);
   else
     b->size ++;
   return;
@@ -1548,13 +1548,13 @@ void * remove(map::data * m, void * key) {
     b->size --;
     struct _cee_map_pair * t = (struct _cee_map_pair *)*oldp;
     tuple::data * ret = t->value;
-    _cee_map_free_pair_follow(t);
+    _cee_map_free_pair_follow(NULL, t);
     decr_indegree(b->key_del_policy, ret->_[0]);
     decr_indegree(b->val_del_policy, ret->_[1]);
     return ret->_[1];
   }
 }
-static void _cee_map_get_key (const void *nodep, const VISIT which, const int depth) {
+static void _cee_map_get_key (void * cxt, const void *nodep, const VISIT which, const int depth) {
   struct _cee_map_pair * p;
   struct _cee_map_header * h;
   list::data * keys;
@@ -1564,7 +1564,7 @@ static void _cee_map_get_key (const void *nodep, const VISIT which, const int de
     case leaf:
       p = *(struct _cee_map_pair **)nodep;
       h = p->h;
-      list::append((list::data **)&h->context, p->value->_[0]);
+      list::append((list::data **)cxt, p->value->_[0]);
       break;
     default:
       break;
@@ -1575,10 +1575,10 @@ list::data * keys(map::data * m) {
   struct _cee_map_header * b = (struct _cee_map_header *)((void *)((char *)(m) - (__builtin_offsetof(struct _cee_map_header, _))));
   list::data * keys = list::mk(b->cs.state, n);
   b->context = keys;
-  musl_twalk(b->_[0], _cee_map_get_key);
+  musl_twalk(&keys, b->_[0], _cee_map_get_key);
   return keys;
 }
-static void _cee_map_get_value (const void *nodep, const VISIT which, const int depth) {
+static void _cee_map_get_value (void * cxt, const void *nodep, const VISIT which, const int depth) {
   struct _cee_map_pair * p;
   struct _cee_map_header * h;
   list::data * values;
@@ -1588,7 +1588,7 @@ static void _cee_map_get_value (const void *nodep, const VISIT which, const int 
     case leaf:
       p = (struct _cee_map_pair *)*(void **)nodep;
       h = p->h;
-      list::append((list::data **)&h->context, p->value->_[1]);
+      list::append((list::data **)cxt, p->value->_[1]);
       break;
     default:
       break;
@@ -1599,7 +1599,7 @@ list::data * values(map::data * m) {
   struct _cee_map_header * b = (struct _cee_map_header *)((void *)((char *)(m) - (__builtin_offsetof(struct _cee_map_header, _))));
   list::data * values = list::mk(b->cs.state, s);
   b->context = values;
-  musl_twalk(b->_[0], _cee_map_get_value);
+  musl_twalk(&values, b->_[0], _cee_map_get_value);
   return values;
 }
   }
@@ -1660,15 +1660,15 @@ struct _cee_set_pair {
   void * value;
   struct _cee_set_header * h;
 };
-static void _cee_set_free_pair_no_follow (void * c) {
+static void _cee_set_free_pair_no_follow (void *cxt, void * c) {
   free(c);
 }
-static void _cee_set_free_pair_follow (void * c) {
+static void _cee_set_free_pair_follow (void * cxt, void * c) {
   struct _cee_set_pair * p = (struct _cee_set_pair *)c;
   del_e(p->h->del_policy, p->value);
   free(c);
 }
-static void _cee_set_trace_pair (const void *nodep, const VISIT which, const int depth) {
+static void _cee_set_trace_pair (void * cxt, const void *nodep, const VISIT which, const int depth) {
   struct _cee_set_pair * p;
   struct _cee_set_header * h;
   switch (which)
@@ -1676,7 +1676,7 @@ static void _cee_set_trace_pair (const void *nodep, const VISIT which, const int
     case preorder:
     case leaf:
       p = (_cee_set_pair *)*(void **)nodep;
-      trace(p->value, p->h->ta);
+      trace(p->value, *((enum trace_action *)cxt));
       break;
     default:
       break;
@@ -1686,19 +1686,19 @@ static void _cee_set_trace(void * p, enum trace_action ta) {
   struct _cee_set_header * h = (struct _cee_set_header *)((void *)((char *)(p) - (__builtin_offsetof(struct _cee_set_header, _))));
   switch (ta) {
     case trace_del_no_follow:
-      musl_tdestroy(h->_[0], _cee_set_free_pair_no_follow);
+      musl_tdestroy(NULL, h->_[0], _cee_set_free_pair_no_follow);
       _cee_set_de_chain(h);
       free(h);
       break;
     case trace_del_follow:
-      musl_tdestroy(h->_[0], _cee_set_free_pair_follow);
+      musl_tdestroy(NULL, h->_[0], _cee_set_free_pair_follow);
       _cee_set_de_chain(h);
       free(h);
       break;
     default:
       h->cs.gc_mark = ta - trace_mark;
       h->ta = ta;
-      musl_twalk(h->_[0], _cee_set_trace_pair);
+      musl_twalk(&ta, h->_[0], _cee_set_trace_pair);
       break;
   }
 }
@@ -1762,20 +1762,22 @@ void add(set::data *m, void * val) {
   }
   return;
 }
-static void _cee_set_noop(void *p) {}
-void cee_set_clear (set::data * s) {
-  struct _cee_set_header * h = (struct _cee_set_header *)((void *)((char *)(s) - (__builtin_offsetof(struct _cee_set_header, _))));
-  switch(h->del_policy) {
+static void _cee_set_del(void * cxt, void * p) {
+  enum del_policy dp = *((enum del_policy *)cxt);
+  switch(dp) {
     case dp_del_rc:
-      musl_tdestroy(h->_[0], del_ref);
+      del_ref(p);
       break;
     case dp_del:
-      musl_tdestroy(h->_[0], del);
+      del(p);
       break;
     case dp_noop:
-      musl_tdestroy(h->_[0], _cee_set_noop);
       break;
   }
+}
+void cee_set_clear (set::data * s) {
+  struct _cee_set_header * h = (struct _cee_set_header *)((void *)((char *)(s) - (__builtin_offsetof(struct _cee_set_header, _))));
+  musl_tdestroy(&h->del_policy, h->_[0], _cee_set_del);
   h->_[0] = NULL;
   h->size = 0;
 }
@@ -1790,7 +1792,7 @@ void * find(set::data *m, void * key) {
     return t[0];
   }
 }
-static void _cee_set_get_value (const void *nodep, const VISIT which, const int depth) {
+static void _cee_set_get_value (void * cxt, const void *nodep, const VISIT which, const int depth) {
   struct _cee_set_pair * p;
   struct _cee_set_header * h;
   switch (which)
@@ -1799,7 +1801,7 @@ static void _cee_set_get_value (const void *nodep, const VISIT which, const int 
     case leaf:
       p = (_cee_set_pair *)*(void **)nodep;
       h = p->h;
-      list::append((list::data **) &h->context, p->value);
+      list::append((list::data **)cxt, p->value);
       break;
     default:
       break;
@@ -1810,7 +1812,7 @@ list::data * values(set::data * m) {
   struct _cee_set_header * h = (struct _cee_set_header *)((void *)((char *)(m) - (__builtin_offsetof(struct _cee_set_header, _))));
   h->context = list::mk(h->cs.state, s);
   use_realloc(h->context);
-  musl_twalk(h->_[0], _cee_set_get_value);
+  musl_twalk(&h->context, h->_[0], _cee_set_get_value);
   return (list::data *)h->context;
 }
 void * remove(set::data *m, void * key) {
@@ -3234,14 +3236,14 @@ void *musl_tsearch(const void *key, void **rootp,
   while (i && __tsearch_balance(a[--i]));
   return r;
 }
-void musl_tdestroy(void *root, void (*freekey)(void *))
+void musl_tdestroy(void * cxt, void *root, void (*freekey)(void *, void *))
 {
   struct _cee_tsearch_node *r = (struct _cee_tsearch_node *)root;
   if (r == 0)
     return;
-  musl_tdestroy(r->a[0], freekey);
-  musl_tdestroy(r->a[1], freekey);
-  if (freekey) freekey((void *)r->key);
+  musl_tdestroy(cxt, r->a[0], freekey);
+  musl_tdestroy(cxt, r->a[1], freekey);
+  if (freekey) freekey(cxt, (void *)r->key);
   free(r);
 }
 void *musl_tfind(const void *key, void *const *rootp,
@@ -3260,23 +3262,25 @@ void *musl_tfind(const void *key, void *const *rootp,
   }
   return n;
 }
-static void walk(struct _cee_tsearch_node *r, void (*action)(const void *, VISIT, int), int d)
+static void walk(void * cxt, struct _cee_tsearch_node *r,
+                 void (*action)(void *, const void *, VISIT, int), int d)
 {
   if (!r)
     return;
   if (r->h == 1)
-    action(r, leaf, d);
+    action(cxt, r, leaf, d);
   else {
-    action(r, preorder, d);
-    walk((struct _cee_tsearch_node *)r->a[0], action, d+1);
-    action(r, postorder, d);
-    walk((struct _cee_tsearch_node *)r->a[1], action, d+1);
-    action(r, endorder, d);
+    action(cxt, r, preorder, d);
+    walk(cxt, (struct _cee_tsearch_node *)r->a[0], action, d+1);
+    action(cxt, r, postorder, d);
+    walk(cxt, (struct _cee_tsearch_node *)r->a[1], action, d+1);
+    action(cxt, r, endorder, d);
   }
 }
-void musl_twalk(const void *root, void (*action)(const void *, VISIT, int))
+void musl_twalk(void * cxt, const void *root,
+                void (*action)(void *, const void *, VISIT, int))
 {
-  walk((struct _cee_tsearch_node *)root, action, 0);
+  walk(cxt, (struct _cee_tsearch_node *)root, action, 0);
 }
 void *musl_tdelete(const void * key, void ** rootp,
   int(*cmp)(const void *, const void *))

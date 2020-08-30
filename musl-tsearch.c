@@ -104,15 +104,15 @@ void *musl_tsearch(const void *key, void **rootp,
   return r;
 }
 
-void musl_tdestroy(void *root, void (*freekey)(void *))
+void musl_tdestroy(void * cxt, void *root, void (*freekey)(void *, void *))
 {
   struct S(node) *r = (struct S(node) *)root;
 
   if (r == 0)
     return;
-  musl_tdestroy(r->a[0], freekey);
-  musl_tdestroy(r->a[1], freekey);
-  if (freekey) freekey((void *)r->key);
+  musl_tdestroy(cxt, r->a[0], freekey);
+  musl_tdestroy(cxt, r->a[1], freekey);
+  if (freekey) freekey(cxt, (void *)r->key);
   free(r);
 }
 
@@ -134,24 +134,26 @@ void *musl_tfind(const void *key, void *const *rootp,
   return n;
 }
 
-static void walk(struct S(node) *r, void (*action)(const void *, VISIT, int), int d)
+static void walk(void * cxt, struct S(node) *r, 
+                 void (*action)(void *, const void *, VISIT, int), int d)
 {
   if (!r)
     return;
   if (r->h == 1)
-    action(r, leaf, d);
+    action(cxt, r, leaf, d);
   else {
-    action(r, preorder, d);
-    walk((struct S(node) *)r->a[0], action, d+1);
-    action(r, postorder, d);
-    walk((struct S(node) *)r->a[1], action, d+1);
-    action(r, endorder, d);
+    action(cxt, r, preorder, d);
+    walk(cxt, (struct S(node) *)r->a[0], action, d+1);
+    action(cxt, r, postorder, d);
+    walk(cxt, (struct S(node) *)r->a[1], action, d+1);
+    action(cxt, r, endorder, d);
   }
 }
 
-void musl_twalk(const void *root, void (*action)(const void *, VISIT, int))
+void musl_twalk(void * cxt, const void *root, 
+                void (*action)(void *, const void *, VISIT, int))
 {
-  walk((struct S(node) *)root, action, 0);
+  walk(cxt, (struct S(node) *)root, action, 0);
 }
 
 

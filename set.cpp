@@ -31,18 +31,17 @@ struct S(pair) {
   struct S(header) * h;
 };
 
-static void S(free_pair_no_follow) (void * c) {
+static void S(free_pair_no_follow) (void *cxt, void * c) {
   free(c);
 }
-
     
-static void S(free_pair_follow) (void * c) {
+static void S(free_pair_follow) (void * cxt, void * c) {
   struct S(pair) * p = (struct S(pair) *)c;
   del_e(p->h->del_policy, p->value);
   free(c);
 }
     
-static void S(trace_pair) (const void *nodep, const VISIT which, const int depth) {
+static void S(trace_pair) (void * cxt, const void *nodep, const VISIT which, const int depth) {
   struct S(pair) * p;
   struct S(header) * h;
   switch (which) 
@@ -50,7 +49,7 @@ static void S(trace_pair) (const void *nodep, const VISIT which, const int depth
     case preorder:
     case leaf:
       p = (S(pair) *)*(void **)nodep;
-      trace(p->value, p->h->ta);
+      trace(p->value, *((enum trace_action *)cxt));
       break;
     default:
       break;
@@ -61,19 +60,19 @@ static void S(trace)(void * p, enum trace_action ta) {
   struct S(header) * h = FIND_HEADER (p);
   switch (ta) {
     case trace_del_no_follow:
-      musl_tdestroy(h->_[0], S(free_pair_no_follow));
+      musl_tdestroy(NULL, h->_[0], S(free_pair_no_follow));
       S(de_chain)(h);
       free(h);
       break;
     case trace_del_follow:
-      musl_tdestroy(h->_[0], S(free_pair_follow));
+      musl_tdestroy(NULL, h->_[0], S(free_pair_follow));
       S(de_chain)(h);
       free(h);
       break;
     default:
       h->cs.gc_mark = ta - trace_mark;
       h->ta = ta;
-      musl_twalk(h->_[0], S(trace_pair));
+      musl_twalk(&ta, h->_[0], S(trace_pair));
       break;
   }
 }
@@ -147,21 +146,23 @@ void add(set::data *m, void * val) {
   }
   return;
 }
-
-static void S(noop)(void *p) {}
-void cee_set_clear (set::data * s) {
-  struct S(header) * h = FIND_HEADER (s);
-  switch(h->del_policy) {
+    
+static void S(del)(void * cxt, void * p) {
+  enum del_policy dp = *((enum del_policy *)cxt);
+  switch(dp) {
     case dp_del_rc:
-      musl_tdestroy(h->_[0], del_ref);
+      del_ref(p);
       break;  
     case dp_del:
-      musl_tdestroy(h->_[0], del);
+      del(p);
       break;
     case dp_noop:
-      musl_tdestroy(h->_[0], S(noop));
       break;
   }
+}    
+void cee_set_clear (set::data * s) {
+  struct S(header) * h = FIND_HEADER (s);
+  musl_tdestroy(&h->del_policy, h->_[0], S(del));
   h->_[0] = NULL;
   h->size = 0;
 }
@@ -178,7 +179,7 @@ void * find(set::data *m, void * key) {
   }
 }
 
-static void S(get_value) (const void *nodep, const VISIT which, const int depth) {
+static void S(get_value) (void * cxt, const void *nodep, const VISIT which, const int depth) {
   struct S(pair) * p;
   struct S(header) * h;
   switch (which) 
@@ -187,7 +188,7 @@ static void S(get_value) (const void *nodep, const VISIT which, const int depth)
     case leaf:
       p = (S(pair) *)*(void **)nodep;
       h = p->h;
-      list::append((list::data **) &h->context, p->value);
+      list::append((list::data **)cxt, p->value);
       break;
     default:
       break;
@@ -199,7 +200,7 @@ list::data * values(set::data * m) {
   struct S(header) * h = FIND_HEADER(m);
   h->context = list::mk(h->cs.state, s);
   use_realloc(h->context);
-  musl_twalk(h->_[0], S(get_value));
+  musl_twalk(&h->context, h->_[0], S(get_value));
   return (list::data *)h->context;
 }
 
