@@ -32,19 +32,19 @@ int main () {
   printf("%s\n", s2->_);
   
   /* test list */
-  list::data *v = list::mk(st, 10);
+  list::data *list = list::mk(st, 10);
   
-  list::append(&v, s);
-  list::append(&v, s1);
-  list::append(&v, s2);
+  list::append(&list, s);
+  list::append(&list, s1);
+  list::append(&list, s2);
   
-  printf("v.size %uz\n", list::size(v));
+  printf("v.size %uz\n", list::size(list));
   int i;
-  for (i = 0; i < list::size(v); i++)
-    printf ("%d:%s\n", i, (char *)v->_[i]);
+  for (i = 0; i < list::size(list); i++)
+    printf ("%d:%s\n", i, (char *)list->_[i]);
   
   // optional
-  del(v);
+  //del(list);
   
   /* heterogeneous list [ 10, 10.0, "10"] */
   enum T {
@@ -53,36 +53,38 @@ int main () {
     S_T,
   };
   
-  v = list::mk(st, 10);
-  list::append(&v, tagged::mk(st, I_T, boxed::from_i32(st, 10)));
-  list::append(&v, tagged::mk(st, F_T, boxed::from_float(st, 10.1)));
-  list::append(&v, tagged::mk(st, S_T, str::mk(st, "10")));
+  list = list::mk(st, 10);
+  list::append(&list, tagged::mk(st, I_T, boxed::from_i32(st, 10)));
+  list::append(&list, tagged::mk(st, F_T, boxed::from_float(st, 10.1)));
+  list::append(&list, tagged::mk(st, S_T, str::mk(st, "10")));
   
   // optional
-  del(v);
+  //del(list);
+  state::add_gc_root(st, list);
   
   /* test set */
-  set::data * set = NULL;
-  set = set::mk(st, (cmp_fun)strcmp);
+  set::data * set1 = NULL;
+  set1 = set::mk(st, (cmp_fun)strcmp);
   
-  printf ("st: %p\n", set);
-  set::add(set, str::mk(st, "a"));
-  set::add(set, str::mk(st, "aabc"));
-  char * p = (char *)set::find(set, (char *)"aabc");
+  printf ("st: %p\n", set1);
+  set::add(set1, str::mk(st, "a"));
+  set::add(set1, str::mk(st, "aabc"));
+  char * p = (char *)set::find(set1, (char *)"aabc");
   printf ("%s\n", p);
   
-  set::remove(set, str::mk(st, "aabc"));
-  p = (char *)set::find(set, (char *)"aabc");
+  set::remove(set1, str::mk(st, "aabc"));
+  p = (char *)set::find(set1, (char *)"aabc");
   printf ("%s\n", p);
   
   list::data * svals = NULL;
-  svals = set::values(set);
+  svals = set::values(set1);
   for (i = 0; i < list::size(svals); i++)
     printf ("%d %s\n", i, svals->_[i]);
   
   // optional
   // del(set);
   // del(svals);
+  state::add_gc_root(st, set1);
   
   /* test map */
   map::data * mp = NULL;
@@ -102,6 +104,7 @@ int main () {
   // optional
   //del(keys);
   //del(mp);
+  state::add_gc_root(st, mp);
   
   /* test stack */
   stack::data * sp = stack::mk(st, 100);
@@ -112,6 +115,7 @@ int main () {
   
   // optional
   // del(sp);
+  state::add_gc_root(st, sp);
   
   /* test diction */
   dict::data * dict = dict::mk(st, 1000);
@@ -123,8 +127,8 @@ int main () {
   printf ("%s\n", dict::find(dict, key->_));
   
   // optional
-  del(key);
-  del(dict);
+  // del(key);
+  // del(dict);
   
   n_tuple::data * t5 = 
     n_tuple::mk(st, 5, str::mk(st, "1"), str::mk(st, "2"), str::mk(st, "3"), 
@@ -133,15 +137,41 @@ int main () {
   for (i = 0; i < 5; i++)
     printf("%d, %s\n", i, t5->_[i]);
   
+  printf("t5:%p\n", t5);
   state::add_gc_root(st, t5);
-  state::add_gc_root(st, sp);
-  state::add_gc_root(st, mp);
-  state::add_gc_root(st, set);
-  // optional
+  printf("%uz\n", set::size(st->roots));
   
+  list::data * roots = set::values(st->roots);
+  for (i = 0; i < list::size(roots); i++) {
+    printf ("%d:%p\n", i, roots->_[i]);
+  }
+  
+  
+  // optional
   state::gc(st);
+  
+  state::remove_gc_root(st, t5);
+  printf("%uz\n", set::size(st->roots));
+  state::gc(st);
+  
+  state::remove_gc_root(st, mp);
+  printf("%uz\n", set::size(st->roots));
+  state::gc(st);
+  
+  state::remove_gc_root(st, list);
+  printf("%uz\n", set::size(st->roots));
+  state::gc(st);
+  
+  state::remove_gc_root(st, sp);
+  printf("%uz\n", set::size(st->roots));
+  state::gc(st);
+  
+  state::remove_gc_root(st, set1);
+  printf("%uz\n", set::size(st->roots));
+  state::gc(st);
+  
   // del(t5);
-  del(st);
+  // del(st);
   printf ("exit\n");
   return 0;
 }

@@ -61,19 +61,19 @@ static void S(trace)(void * p, enum trace_action ta) {
   struct S(header) * h = FIND_HEADER (p);
   switch (ta) {
     case trace_del_no_follow:
-      tdestroy(h->_[0], S(free_pair_no_follow));
+      musl_tdestroy(h->_[0], S(free_pair_no_follow));
       S(de_chain)(h);
       free(h);
       break;
     case trace_del_follow:
-      tdestroy(h->_[0], S(free_pair_follow));
+      musl_tdestroy(h->_[0], S(free_pair_follow));
       S(de_chain)(h);
       free(h);
       break;
     default:
       h->cs.gc_mark = ta - trace_mark;
       h->ta = ta;
-      twalk(h->_[0], S(trace_pair));
+      musl_twalk(h->_[0], S(trace_pair));
       break;
   }
 }
@@ -130,7 +130,7 @@ void add(map::data * m, void * key, void * value) {
   d[1] = b->val_del_policy;
   
   triple->value = tuple::mk_e(b->cs.state, d, key, value);
-  struct S(pair) ** oldp = (struct S(pair) **)tsearch(triple, b->_, S(cmp));
+  struct S(pair) ** oldp = (struct S(pair) **)musl_tsearch(triple, b->_, S(cmp));
   if (oldp == NULL)
     segfault(); // run out of memory
   else if (*oldp != triple) 
@@ -144,7 +144,7 @@ void * find(map::data * m, void * key) {
   struct S(header) * b = FIND_HEADER(m);
   tuple::data t = { key, 0 };
   struct S(pair) keyp = { .value = &t, .h = b };
-  void **oldp = (void **)tfind(&keyp, b->_, S(cmp));
+  void **oldp = (void **)musl_tfind(&keyp, b->_, S(cmp));
   if (oldp == NULL)
     return NULL;
   else {
@@ -155,7 +155,7 @@ void * find(map::data * m, void * key) {
 
 void * remove(map::data * m, void * key) {
   struct S(header) * b = FIND_HEADER(m);
-  void ** oldp = (void **)tdelete(key, b->_, S(cmp));
+  void ** oldp = (void **)musl_tdelete(key, b->_, S(cmp));
   if (oldp == NULL)
     return NULL;
   else {
@@ -191,7 +191,7 @@ list::data * keys(map::data * m) {
   struct S(header) * b = FIND_HEADER(m);
   list::data * keys = list::mk(b->cs.state, n);
   b->context = keys;
-  twalk(b->_[0], S(get_key));
+  musl_twalk(b->_[0], S(get_key));
   return keys;
 }
 
@@ -218,7 +218,7 @@ list::data * values(map::data * m) {
   struct S(header) * b = FIND_HEADER(m);
   list::data * values = list::mk(b->cs.state, s);
   b->context = values;
-  twalk(b->_[0], S(get_value));
+  musl_twalk(b->_[0], S(get_value));
   return values;
 }
   

@@ -61,19 +61,19 @@ static void S(trace)(void * p, enum trace_action ta) {
   struct S(header) * h = FIND_HEADER (p);
   switch (ta) {
     case trace_del_no_follow:
-      tdestroy(h->_[0], S(free_pair_no_follow));
+      musl_tdestroy(h->_[0], S(free_pair_no_follow));
       S(de_chain)(h);
       free(h);
       break;
     case trace_del_follow:
-      tdestroy(h->_[0], S(free_pair_follow));
+      musl_tdestroy(h->_[0], S(free_pair_follow));
       S(de_chain)(h);
       free(h);
       break;
     default:
       h->cs.gc_mark = ta - trace_mark;
       h->ta = ta;
-      twalk(h->_[0], S(trace_pair));
+      musl_twalk(h->_[0], S(trace_pair));
       break;
   }
 }
@@ -135,7 +135,7 @@ void add(set::data *m, void * val) {
   struct S(pair) * c = (struct S(pair) *)malloc(sizeof(struct S(pair)));
   c->value = val;
   c->h = h;
-  void *** oldp = (void ***) tsearch(c, h->_, S(cmp));
+  void *** oldp = (void ***) musl_tsearch(c, h->_, S(cmp));
   
   if (oldp == NULL)
     segfault();
@@ -153,23 +153,23 @@ void cee_set_clear (set::data * s) {
   struct S(header) * h = FIND_HEADER (s);
   switch(h->del_policy) {
     case dp_del_rc:
-      tdestroy(h->_[0], del_ref);
+      musl_tdestroy(h->_[0], del_ref);
       break;  
     case dp_del:
-      tdestroy(h->_[0], del);
+      musl_tdestroy(h->_[0], del);
       break;
     case dp_noop:
-      tdestroy(h->_[0], S(noop));
+      musl_tdestroy(h->_[0], S(noop));
       break;
   }
   h->_[0] = NULL;
   h->size = 0;
 }
 
-void * find(set::data *m, void * value) {
+void * find(set::data *m, void * key) {
   struct S(header) * h = FIND_HEADER(m);
-  struct S(pair) p = { value, h };
-  void ***oldp = (void ***)tfind(&p, h->_, S(cmp));
+  struct S(pair) p = { key, h };
+  void ***oldp = (void ***) musl_tfind(&p, h->_, S(cmp));
   if (oldp == NULL)
     return NULL;
   else {
@@ -199,20 +199,22 @@ list::data * values(set::data * m) {
   struct S(header) * h = FIND_HEADER(m);
   h->context = list::mk(h->cs.state, s);
   use_realloc(h->context);
-  twalk(h->_[0], S(get_value));
+  musl_twalk(h->_[0], S(get_value));
   return (list::data *)h->context;
 }
 
 void * remove(set::data *m, void * key) {
   struct S(header) * h = FIND_HEADER(m);
-  void ** old = (void **)tdelete(key, h->_, h->cmp);
+  struct S(pair) p = { key, h };
+  void ** old = (void **)musl_tfind(&p, h->_, S(cmp));
   if (old == NULL)
     return NULL;
   else {
     h->size --;
-    struct S(pair) * p = (struct S(pair) *)*old;
-    void * k = p->value;
-    free(p);
+    struct S(pair) * x = (struct S(pair) *)*old;
+    void * k = x->value;
+    musl_tdelete(&p, h->_, S(cmp));
+    //free(x);
     return k;
   }
 }

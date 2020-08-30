@@ -61,14 +61,12 @@ static void S(sweep) (void * v, enum trace_action ta) {
 }
 
 static int S(cmp) (const void * v1, const void * v2) {
-  intptr_t u1 = (intptr_t) v1;
-  intptr_t u2 = (intptr_t) v2;
-  if (u1 > u2)
+  if (v1 < v2)
     return -1;
-  else if (u1 == u2)
+  else if (v1 == v2)
     return 0;
   else
-    return -1;
+    return 1;
 }
 
 
