@@ -580,6 +580,8 @@ extern void segfault() __attribute__((noreturn));
 
 namespace state {
   struct data {
+    // arbitrary number of contexts
+    map::data * contexts;
     stack::data * stack;  // the stack
     struct sect * trace_tail;
     // all memory blocks are reachables from the roots
@@ -595,6 +597,9 @@ namespace state {
   extern void add_gc_root(state::data *, void *);
   extern void remove_gc_root(state::data *, void *);
   extern void gc(state::data *);
+  extern void add_context(state::data *, char * key, void * val);
+  extern void remove_context(state::data *, char * key);
+  extern void * get_context(state::data *, char * key);
 };
   
 }

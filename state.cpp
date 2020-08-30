@@ -44,6 +44,7 @@ static void S(trace) (void * v, enum trace_action ta) {
       m->cs.gc_mark = ta - trace_mark;
       trace(m->_.roots, ta);
       trace(m->_.stack, ta);
+      trace(m->_.contexts, ta);
       break;
     }
   }
@@ -81,6 +82,7 @@ state::data * mk(size_t n) {
   h->_.roots = roots;
   h->_.next_mark = 1;
   h->_.stack = stack::mk(&h->_, n);
+  h->_.contexts = map::mk(&h->_, (cmp_fun)strcmp);
   return &h->_;
 }
   
@@ -90,6 +92,18 @@ void add_gc_root(state::data * s, void * key) {
   
 void remove_gc_root(state::data * s, void * key) {
   set::remove(s->roots, key);
+}
+  
+void add_context (state::data * s, char * key, void * val) {
+  map::add(s->contexts, key, val);
+}
+  
+void remove_context (state::data * s, char * key) {
+  map::remove(s->contexts, key);
+}
+  
+void * get_context (state::data * s, char * key) {
+  return map::find(s->contexts, key);
 }
   
 void gc (state::data * s) {
