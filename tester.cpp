@@ -151,23 +151,23 @@ int main () {
   state::gc(st);
   
   state::remove_gc_root(st, t5);
-  printf("%uz\n", set::size(st->roots));
+  printf("%zu\n", set::size(st->roots));
   state::gc(st);
   
   state::remove_gc_root(st, mp);
-  printf("%uz\n", set::size(st->roots));
+  printf("%zu\n", set::size(st->roots));
   state::gc(st);
   
   state::remove_gc_root(st, list);
-  printf("%uz\n", set::size(st->roots));
+  printf("%zu\n", set::size(st->roots));
   state::gc(st);
   
   state::remove_gc_root(st, sp);
-  printf("%uz\n", set::size(st->roots));
+  printf("%zu\n", set::size(st->roots));
   state::gc(st);
   
   state::remove_gc_root(st, set1);
-  printf("%uz\n", set::size(st->roots));
+  printf("%zu\n", set::size(st->roots));
   state::gc(st);
   
   // del(t5);
