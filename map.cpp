@@ -78,13 +78,11 @@ static void S(trace)(void * p, enum trace_action ta) {
   }
 }
 
-static int S(cmp) (const void * v1, const void * v2) {
+static int S(cmp) (void * cxt, const void * v1, const void * v2) {
+  struct S(header) * h = (struct S(header) *) cxt;
   struct S(pair) * t1 = (struct S(pair) *) v1;
   struct S(pair) * t2 = (struct S(pair) *) v2;
-  if (t1->h == t2->h)
-  	return t1->h->cmp(t1->value->_[0], t2->value->_[0]);
-  else
-    segfault();
+  return h->cmp(t1->value->_[0], t2->value->_[0]);
 }
 
 map::data * mk_e (state::data * st, enum del_policy o[2], 
@@ -130,7 +128,7 @@ void add(map::data * m, void * key, void * value) {
   d[1] = b->val_del_policy;
   
   triple->value = tuple::mk_e(b->cs.state, d, key, value);
-  struct S(pair) ** oldp = (struct S(pair) **)musl_tsearch(triple, b->_, S(cmp));
+  struct S(pair) ** oldp = (struct S(pair) **)musl_tsearch(b, triple, b->_, S(cmp));
   if (oldp == NULL)
     segfault(); // run out of memory
   else if (*oldp != triple) 
@@ -144,7 +142,7 @@ void * find(map::data * m, void * key) {
   struct S(header) * b = FIND_HEADER(m);
   tuple::data t = { key, 0 };
   struct S(pair) keyp = { .value = &t, .h = b };
-  void **oldp = (void **)musl_tfind(&keyp, b->_, S(cmp));
+  void **oldp = (void **)musl_tfind(b, &keyp, b->_, S(cmp));
   if (oldp == NULL)
     return NULL;
   else {
@@ -155,7 +153,7 @@ void * find(map::data * m, void * key) {
 
 void * remove(map::data * m, void * key) {
   struct S(header) * b = FIND_HEADER(m);
-  void ** oldp = (void **)musl_tdelete(key, b->_, S(cmp));
+  void ** oldp = (void **)musl_tdelete(b, key, b->_, S(cmp));
   if (oldp == NULL)
     return NULL;
   else {

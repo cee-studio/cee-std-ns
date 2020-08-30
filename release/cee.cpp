@@ -1474,13 +1474,11 @@ static void _cee_map_trace(void * p, enum trace_action ta) {
       break;
   }
 }
-static int _cee_map_cmp (const void * v1, const void * v2) {
+static int _cee_map_cmp (void * cxt, const void * v1, const void * v2) {
+  struct _cee_map_header * h = (struct _cee_map_header *) cxt;
   struct _cee_map_pair * t1 = (struct _cee_map_pair *) v1;
   struct _cee_map_pair * t2 = (struct _cee_map_pair *) v2;
-  if (t1->h == t2->h)
-   return t1->h->cmp(t1->value->_[0], t2->value->_[0]);
-  else
-    segfault();
+  return h->cmp(t1->value->_[0], t2->value->_[0]);
 }
 map::data * mk_e (state::data * st, enum del_policy o[2],
                   int (*cmp)(const void *, const void *)) {
@@ -1518,7 +1516,7 @@ void add(map::data * m, void * key, void * value) {
   d[0] = b->key_del_policy;
   d[1] = b->val_del_policy;
   triple->value = tuple::mk_e(b->cs.state, d, key, value);
-  struct _cee_map_pair ** oldp = (struct _cee_map_pair **)musl_tsearch(triple, b->_, _cee_map_cmp);
+  struct _cee_map_pair ** oldp = (struct _cee_map_pair **)musl_tsearch(b, triple, b->_, _cee_map_cmp);
   if (oldp == NULL)
     segfault(); // run out of memory
   else if (*oldp != triple)
@@ -1531,7 +1529,7 @@ void * find(map::data * m, void * key) {
   struct _cee_map_header * b = (struct _cee_map_header *)((void *)((char *)(m) - (__builtin_offsetof(struct _cee_map_header, _))));
   tuple::data t = { key, 0 };
   struct _cee_map_pair keyp = { .value = &t, .h = b };
-  void **oldp = (void **)musl_tfind(&keyp, b->_, _cee_map_cmp);
+  void **oldp = (void **)musl_tfind(b, &keyp, b->_, _cee_map_cmp);
   if (oldp == NULL)
     return NULL;
   else {
@@ -1541,7 +1539,7 @@ void * find(map::data * m, void * key) {
 }
 void * remove(map::data * m, void * key) {
   struct _cee_map_header * b = (struct _cee_map_header *)((void *)((char *)(m) - (__builtin_offsetof(struct _cee_map_header, _))));
-  void ** oldp = (void **)musl_tdelete(key, b->_, _cee_map_cmp);
+  void ** oldp = (void **)musl_tdelete(b, key, b->_, _cee_map_cmp);
   if (oldp == NULL)
     return NULL;
   else {
@@ -1656,27 +1654,19 @@ static void _cee_set_de_chain (struct _cee_set_header * h) {
       next->trace_prev = prev;
   }
 }
-struct _cee_set_pair {
-  void * value;
-  struct _cee_set_header * h;
-};
-static void _cee_set_free_pair_no_follow (void *cxt, void * c) {
-  free(c);
-}
 static void _cee_set_free_pair_follow (void * cxt, void * c) {
-  struct _cee_set_pair * p = (struct _cee_set_pair *)c;
-  del_e(p->h->del_policy, p->value);
-  free(c);
+  enum del_policy dp = * (enum del_policy *) cxt;
+  del_e(dp, c);
 }
 static void _cee_set_trace_pair (void * cxt, const void *nodep, const VISIT which, const int depth) {
-  struct _cee_set_pair * p;
+  void * p;
   struct _cee_set_header * h;
   switch (which)
   {
     case preorder:
     case leaf:
-      p = (_cee_set_pair *)*(void **)nodep;
-      trace(p->value, *((enum trace_action *)cxt));
+      p = *(void **)nodep;
+      trace(p, *((enum trace_action *)cxt));
       break;
     default:
       break;
@@ -1686,7 +1676,7 @@ static void _cee_set_trace(void * p, enum trace_action ta) {
   struct _cee_set_header * h = (struct _cee_set_header *)((void *)((char *)(p) - (__builtin_offsetof(struct _cee_set_header, _))));
   switch (ta) {
     case trace_del_no_follow:
-      musl_tdestroy(NULL, h->_[0], _cee_set_free_pair_no_follow);
+      musl_tdestroy(NULL, h->_[0], NULL);
       _cee_set_de_chain(h);
       free(h);
       break;
@@ -1702,13 +1692,9 @@ static void _cee_set_trace(void * p, enum trace_action ta) {
       break;
   }
 }
-static int _cee_set_cmp (const void * v1, const void * v2) {
-  struct _cee_set_pair * t1 = (struct _cee_set_pair *) v1;
-  struct _cee_set_pair * t2 = (struct _cee_set_pair *) v2;
-  if (t1->h == t2->h)
-    return t1->h->cmp(t1->value, t2->value);
-  else
-    segfault();
+int _cee_set_cmp (void * cxt, const void * v1, const void *v2) {
+  struct _cee_set_header * h = (struct _cee_set_header *) cxt;
+  return h->cmp(v1, v2);
 }
 /*
  * create a new set and the equality of 
@@ -1748,14 +1734,11 @@ bool empty (set::data * s) {
  */
 void add(set::data *m, void * val) {
   struct _cee_set_header * h = (struct _cee_set_header *)((void *)((char *)(m) - (__builtin_offsetof(struct _cee_set_header, _))));
-  struct _cee_set_pair * c = (struct _cee_set_pair *)malloc(sizeof(struct _cee_set_pair));
-  c->value = val;
-  c->h = h;
-  void *** oldp = (void ***) musl_tsearch(c, h->_, _cee_set_cmp);
+  void ** oldp = (void **) musl_tsearch(h, val, h->_, _cee_set_cmp);
   if (oldp == NULL)
     segfault();
-  else if (*oldp != (void **)c)
-    free(c);
+  else if (*oldp != (void *)val)
+    return;
   else {
     h->size ++;
     incr_indegree(h->del_policy, val);
@@ -1783,25 +1766,20 @@ void cee_set_clear (set::data * s) {
 }
 void * find(set::data *m, void * key) {
   struct _cee_set_header * h = (struct _cee_set_header *)((void *)((char *)(m) - (__builtin_offsetof(struct _cee_set_header, _))));
-  struct _cee_set_pair p = { key, h };
-  void ***oldp = (void ***) musl_tfind(&p, h->_, _cee_set_cmp);
+  void *oldp = (void *) musl_tfind(h, key, h->_, _cee_set_cmp);
   if (oldp == NULL)
     return NULL;
-  else {
-    void ** t = (void **)*oldp;
-    return t[0];
-  }
+  else
+    return oldp;
 }
 static void _cee_set_get_value (void * cxt, const void *nodep, const VISIT which, const int depth) {
-  struct _cee_set_pair * p;
-  struct _cee_set_header * h;
+  void * p;
   switch (which)
   {
     case preorder:
     case leaf:
-      p = (_cee_set_pair *)*(void **)nodep;
-      h = p->h;
-      list::append((list::data **)cxt, p->value);
+      p = *(void **)nodep;
+      list::append((list::data **)cxt, p);
       break;
     default:
       break;
@@ -1817,16 +1795,13 @@ list::data * values(set::data * m) {
 }
 void * remove(set::data *m, void * key) {
   struct _cee_set_header * h = (struct _cee_set_header *)((void *)((char *)(m) - (__builtin_offsetof(struct _cee_set_header, _))));
-  struct _cee_set_pair p = { key, h };
-  void ** old = (void **)musl_tfind(&p, h->_, _cee_set_cmp);
+  void ** old = (void **)musl_tfind(h, key, h->_, _cee_set_cmp);
   if (old == NULL)
     return NULL;
   else {
     h->size --;
-    struct _cee_set_pair * x = (struct _cee_set_pair *)*old;
-    void * k = x->value;
-    musl_tdelete(&p, h->_, _cee_set_cmp);
-    //free(x);
+    void * k = *old;
+    musl_tdelete(h, key, h->_, _cee_set_cmp);
     return k;
   }
 }
@@ -3206,8 +3181,8 @@ static int __tsearch_balance(void **p)
   }
   return rot(p, n, h0<h1);
 }
-void *musl_tsearch(const void *key, void **rootp,
-  int (*cmp)(const void *, const void *))
+void *musl_tsearch(void *cxt, const void *key, void **rootp,
+  int (*cmp)(void *, const void *, const void *))
 {
   if (!rootp)
     return 0;
@@ -3219,7 +3194,7 @@ void *musl_tsearch(const void *key, void **rootp,
   for (;;) {
     if (!n)
       break;
-    int c = cmp(key, n->key);
+    int c = cmp(cxt, key, n->key);
     if (!c)
       return n;
     a[i++] = &n->a[c>0];
@@ -3246,8 +3221,8 @@ void musl_tdestroy(void * cxt, void *root, void (*freekey)(void *, void *))
   if (freekey) freekey(cxt, (void *)r->key);
   free(r);
 }
-void *musl_tfind(const void *key, void *const *rootp,
-  int(*cmp)(const void *, const void *))
+void *musl_tfind(void * cxt, const void *key, void *const *rootp,
+  int(*cmp)(void * cxt, const void *, const void *))
 {
   if (!rootp)
     return 0;
@@ -3255,7 +3230,7 @@ void *musl_tfind(const void *key, void *const *rootp,
   for (;;) {
     if (!n)
       break;
-    int c = cmp(key, n->key);
+    int c = cmp(cxt, key, n->key);
     if (!c)
       break;
     n = (struct _cee_tsearch_node *)n->a[c>0];
@@ -3282,8 +3257,8 @@ void musl_twalk(void * cxt, const void *root,
 {
   walk(cxt, (struct _cee_tsearch_node *)root, action, 0);
 }
-void *musl_tdelete(const void * key, void ** rootp,
-  int(*cmp)(const void *, const void *))
+void *musl_tdelete(void * cxt, const void * key, void ** rootp,
+  int(*cmp)(void * cxt, const void *, const void *))
 {
   if (!rootp)
     return 0;
@@ -3299,7 +3274,7 @@ void *musl_tdelete(const void * key, void ** rootp,
   for (;;) {
     if (!n)
       return 0;
-    int c = cmp(key, n->key);
+    int c = cmp(cxt, key, n->key);
     if (!c)
       break;
     a[i++] = &n->a[c>0];

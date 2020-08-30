@@ -72,8 +72,8 @@ static int __tsearch_balance(void **p)
   return rot(p, n, h0<h1);
 }
 
-void *musl_tsearch(const void *key, void **rootp,
-  int (*cmp)(const void *, const void *))
+void *musl_tsearch(void *cxt, const void *key, void **rootp,
+  int (*cmp)(void *, const void *, const void *))
 {
   if (!rootp)
     return 0;
@@ -86,7 +86,7 @@ void *musl_tsearch(const void *key, void **rootp,
   for (;;) {
     if (!n)
       break;
-    int c = cmp(key, n->key);
+    int c = cmp(cxt, key, n->key);
     if (!c)
       return n;
     a[i++] = &n->a[c>0];
@@ -116,8 +116,8 @@ void musl_tdestroy(void * cxt, void *root, void (*freekey)(void *, void *))
   free(r);
 }
 
-void *musl_tfind(const void *key, void *const *rootp,
-  int(*cmp)(const void *, const void *))
+void *musl_tfind(void * cxt, const void *key, void *const *rootp,
+  int(*cmp)(void * cxt, const void *, const void *))
 {
   if (!rootp)
     return 0;
@@ -126,7 +126,7 @@ void *musl_tfind(const void *key, void *const *rootp,
   for (;;) {
     if (!n)
       break;
-    int c = cmp(key, n->key);
+    int c = cmp(cxt, key, n->key);
     if (!c)
       break;
     n = (struct S(node) *)n->a[c>0];
@@ -157,8 +157,8 @@ void musl_twalk(void * cxt, const void *root,
 }
 
 
-void *musl_tdelete(const void * key, void ** rootp,
-  int(*cmp)(const void *, const void *))
+void *musl_tdelete(void * cxt, const void * key, void ** rootp,
+  int(*cmp)(void * cxt, const void *, const void *))
 {
   if (!rootp)
     return 0;
@@ -175,7 +175,7 @@ void *musl_tdelete(const void * key, void ** rootp,
   for (;;) {
     if (!n)
       return 0;
-    int c = cmp(key, n->key);
+    int c = cmp(cxt, key, n->key);
     if (!c)
       break;
     a[i++] = &n->a[c>0];

@@ -67,6 +67,10 @@ static void S(trace)(void * p, enum trace_action ta) {
   }
 }
 
+int S(cmp) (void * cxt, const void * v1, const void *v2) {
+  struct S(header) * h = (struct S(header) *) cxt;
+  return h->cmp(v1, v2);
+}
 
 /*
  * create a new set and the equality of 
@@ -111,7 +115,7 @@ bool empty (set::data * s) {
  */
 void add(set::data *m, void * val) {
   struct S(header) * h = FIND_HEADER(m);
-  void ** oldp = (void **) musl_tsearch(val, h->_, h->cmp);
+  void ** oldp = (void **) musl_tsearch(h, val, h->_, S(cmp));
   
   if (oldp == NULL)
     segfault();
@@ -146,7 +150,7 @@ void cee_set_clear (set::data * s) {
 
 void * find(set::data *m, void * key) {
   struct S(header) * h = FIND_HEADER(m);
-  void *oldp = (void *) musl_tfind(key, h->_, h->cmp);
+  void *oldp = (void *) musl_tfind(h, key, h->_, S(cmp));
   if (oldp == NULL)
     return NULL;
   else
@@ -178,13 +182,13 @@ list::data * values(set::data * m) {
 
 void * remove(set::data *m, void * key) {
   struct S(header) * h = FIND_HEADER(m);
-  void ** old = (void **)musl_tfind(key, h->_, h->cmp);
+  void ** old = (void **)musl_tfind(h, key, h->_, S(cmp));
   if (old == NULL)
     return NULL;
   else {
     h->size --;
     void * k = *old;
-    musl_tdelete(key, h->_, h->cmp);
+    musl_tdelete(h, key, h->_, S(cmp));
     return k;
   }
 }

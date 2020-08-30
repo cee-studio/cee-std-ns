@@ -33,9 +33,9 @@ void *musl_lsearch(const void *, void *, size_t *, size_t,
 void *musl_lfind(const void *, const void *, size_t *, size_t,
 	int (*)(const void *, const void *));
 
-void *musl_tdelete(const void *__restrict, void **__restrict, int(*)(const void *, const void *));
-void *musl_tfind(const void *, void *const *, int(*)(const void *, const void *));
-void *musl_tsearch(const void *, void **, int (*)(const void *, const void *));
+void *musl_tdelete(void * cxt, const void *__restrict, void **__restrict, int(*)(void *, const void *, const void *));
+void *musl_tfind(void * cxt, const void *, void *const *, int(*)(void *, const void *, const void *));
+void *musl_tsearch(void * cxt, const void *, void **, int (*)(void *, const void *, const void *));
 void musl_twalk(void * cxt, const void *, void (*)(void *, const void *, VISIT, int));
 
 
