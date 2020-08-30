@@ -1,6 +1,9 @@
 #ifndef MUSL_SEARCH_H
 #define MUSL_SEARCH_H
+#ifdef CEE_AMALGAMATION
+#else
 #include <stddef.h>
+#endif
 
 typedef enum { FIND, ENTER } ACTION;
 typedef enum { preorder, postorder, endorder, leaf } VISIT;

@@ -10,6 +10,7 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <stdio.h>
+#include "musl-search.h"
 #endif
 #include "cee-header.h"
 
@@ -72,7 +73,7 @@ dict::data * mk_e (state::data * s, enum del_policy o, size_t size) {
   size_t  hsize = (size_t)((float)size * 1.25);
   memset(m->_, 0, sizeof(struct musl_hsearch_data));
   if (musl_hcreate_r(hsize, m->_)) {
-    return (dict::data *)(m->_);
+    return (dict::data *)(&m->_);
   }
   else {
     del(m->keys);

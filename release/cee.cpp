@@ -1,4 +1,5 @@
 #define CEE_ONE
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -7,7 +8,6 @@
 #include <errno.h>
 #ifndef CEE_H
 #define CEE_H
-#include "musl-search.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -80,12 +80,17 @@ struct sect {
   uint8_t  gc_mark:2;             // used for mark & sweep gc
   uint8_t  n_product;             // n-ary (no more than 256) product type
   uint16_t in_degree;             // the number of cee objects points to this object
+  // begin of gc fields
   state::data * state;            // the gc state under which this block is allocated
   struct sect * trace_next;       // used for chaining cee::_::data to be traced
   struct sect * trace_prev;       // used for chaining cee::_::data to be traced
+  // end of gc fields
   uintptr_t mem_block_size;       // the size of a memory block enclosing this struct
   void *cmp;                      // compare two memory blocks
-  void (*trace)(void *, enum trace_action);// the object specific scan function
+  
+  // the object specific generic scan function
+  // it does memory deallocation, reference count decreasing, or liveness marking
+  void (*trace)(void *, enum trace_action);
 };
 
 
@@ -364,7 +369,7 @@ namespace dict {
    *
    */
   struct data {
-    struct musl_hsearch_data _;
+    char _[1];  // opaque data
   };
 
   /*
@@ -619,6 +624,397 @@ namespace state {
 #endif 
 
 #endif // CEE_INTERNAL_H
+typedef enum { FIND, ENTER } ACTION;
+typedef enum { preorder, postorder, endorder, leaf } VISIT;
+typedef struct musl_entry {
+ char *key;
+ void *data;
+} MUSL_ENTRY;
+int musl_hcreate(size_t);
+void musl_hdestroy(void);
+MUSL_ENTRY *musl_hsearch(MUSL_ENTRY, ACTION);
+struct musl_hsearch_data {
+ struct __tab *__tab;
+ unsigned int __unused1;
+ unsigned int __unused2;
+};
+int musl_hcreate_r(size_t, struct musl_hsearch_data *);
+void musl_hdestroy_r(struct musl_hsearch_data *);
+int musl_hsearch_r(MUSL_ENTRY, ACTION, MUSL_ENTRY **, struct musl_hsearch_data *);
+void musl_insque(void *, void *);
+void musl_remque(void *);
+void *musl_lsearch(const void *, void *, size_t *, size_t,
+ int (*)(const void *, const void *));
+void *musl_lfind(const void *, const void *, size_t *, size_t,
+ int (*)(const void *, const void *));
+void *musl_tdelete(void * cxt, const void *__restrict, void **__restrict, int(*)(void *, const void *, const void *));
+void *musl_tfind(void * cxt, const void *, void *const *, int(*)(void *, const void *, const void *));
+void *musl_tsearch(void * cxt, const void *, void **, int (*)(void *, const void *, const void *));
+void musl_twalk(void * cxt, const void *, void (*)(void *, const void *, VISIT, int));
+struct musl_qelem {
+ struct qelem *q_forw, *q_back;
+ char q_data[1];
+};
+void musl_tdestroy(void * cxt, void *, void (*)(void * cxt, void *));
+/*
+open addressing hash table with 2^n table size
+quadratic probing is used in case of hash collision
+tab indices and hash are size_t
+after resize fails with ENOMEM the state of tab is still usable
+
+with the posix api items cannot be iterated and length cannot be queried
+*/
+struct __tab {
+  MUSL_ENTRY *entries;
+  size_t mask;
+  size_t used;
+};
+static struct musl_hsearch_data htab;
+/*
+static int musl_hcreate_r(size_t, struct musl_hsearch_data *);
+static void musl_hdestroy_r(struct musl_hsearch_data *);
+static int mul_hsearch_r(MUSL_ENTRY, ACTION, MUSL_ENTRY **, struct musl_hsearch_data *);
+*/
+static size_t keyhash(char *k)
+{
+  unsigned char *p = (unsigned char *)k;
+  size_t h = 0;
+  while (*p)
+    h = 31*h + *p++;
+  return h;
+}
+static int resize(size_t nel, struct musl_hsearch_data *htab)
+{
+  size_t newsize;
+  size_t i, j;
+  MUSL_ENTRY *e, *newe;
+  MUSL_ENTRY *oldtab = htab->__tab->entries;
+  MUSL_ENTRY *oldend = htab->__tab->entries + htab->__tab->mask + 1;
+  if (nel > ((size_t)-1/2 + 1))
+    nel = ((size_t)-1/2 + 1);
+  for (newsize = 8; newsize < nel; newsize *= 2);
+  htab->__tab->entries = (MUSL_ENTRY *)calloc(newsize, sizeof *htab->__tab->entries);
+  if (!htab->__tab->entries) {
+    htab->__tab->entries = oldtab;
+    return 0;
+  }
+  htab->__tab->mask = newsize - 1;
+  if (!oldtab)
+    return 1;
+  for (e = oldtab; e < oldend; e++)
+    if (e->key) {
+      for (i=keyhash(e->key),j=1; ; i+=j++) {
+        newe = htab->__tab->entries + (i & htab->__tab->mask);
+        if (!newe->key)
+          break;
+      }
+      *newe = *e;
+    }
+  free(oldtab);
+  return 1;
+}
+int musl_hcreate(size_t nel)
+{
+  return musl_hcreate_r(nel, &htab);
+}
+void musl_hdestroy(void)
+{
+  musl_hdestroy_r(&htab);
+}
+static MUSL_ENTRY *lookup(char *key, size_t hash, struct musl_hsearch_data *htab)
+{
+  size_t i, j;
+  MUSL_ENTRY *e;
+  for (i=hash,j=1; ; i+=j++) {
+    e = htab->__tab->entries + (i & htab->__tab->mask);
+    if (!e->key || strcmp(e->key, key) == 0)
+      break;
+  }
+  return e;
+}
+MUSL_ENTRY *musl_hsearch(MUSL_ENTRY item, ACTION action)
+{
+  MUSL_ENTRY *e;
+  musl_hsearch_r(item, action, &e, &htab);
+  return e;
+}
+int musl_hcreate_r(size_t nel, struct musl_hsearch_data *htab)
+{
+  int r;
+  htab->__tab = (struct __tab *) calloc(1, sizeof *htab->__tab);
+  if (!htab->__tab)
+    return 0;
+  r = resize(nel, htab);
+  if (r == 0) {
+    free(htab->__tab);
+    htab->__tab = 0;
+  }
+  return r;
+}
+void musl_hdestroy_r(struct musl_hsearch_data *htab)
+{
+  if (htab->__tab) free(htab->__tab->entries);
+  free(htab->__tab);
+  htab->__tab = 0;
+}
+int musl_hsearch_r(MUSL_ENTRY item, ACTION action, MUSL_ENTRY **retval,
+                   struct musl_hsearch_data *htab)
+{
+  size_t hash = keyhash(item.key);
+  MUSL_ENTRY *e = lookup(item.key, hash, htab);
+  if (e->key) {
+    *retval = e;
+    return 1;
+  }
+  if (action == FIND) {
+    *retval = 0;
+    return 0;
+  }
+  *e = item;
+  if (++htab->__tab->used > htab->__tab->mask - htab->__tab->mask/4) {
+    if (!resize(2*htab->__tab->used, htab)) {
+      htab->__tab->used--;
+      e->key = 0;
+      *retval = 0;
+      return 0;
+    }
+    e = lookup(item.key, hash, htab);
+  }
+  *retval = e;
+  return 1;
+}
+struct _musl_lsearch__node {
+  struct _musl_lsearch__node *next;
+  struct _musl_lsearch__node *prev;
+};
+void musl_insque(void *element, void *pred)
+{
+  struct _musl_lsearch__node *e = (struct _musl_lsearch__node *)element;
+  struct _musl_lsearch__node *p = (struct _musl_lsearch__node *)pred;
+  if (!p) {
+    e->next = e->prev = 0;
+    return;
+  }
+  e->next = p->next;
+  e->prev = p;
+  p->next = e;
+  if (e->next)
+    e->next->prev = e;
+}
+void musl_remque(void *element)
+{
+  struct _musl_lsearch__node *e = (struct _musl_lsearch__node *)element;
+  if (e->next)
+    e->next->prev = e->prev;
+  if (e->prev)
+    e->prev->next = e->next;
+}
+void *musl_lsearch(const void *key, void *base, size_t *nelp, size_t width,
+  int (*compar)(const void *, const void *))
+{
+  char **p = (char **)base;
+  size_t n = *nelp;
+  size_t i;
+  for (i = 0; i < n; i++)
+    if (compar(p[i], key) == 0)
+      return p[i];
+  *nelp = n+1;
+  // b.o. here when width is longer than the size of key
+  return memcpy(p[n], key, width);
+}
+void *musl_lfind(const void *key, const void *base, size_t *nelp,
+  size_t width, int (*compar)(const void *, const void *))
+{
+  char **p = (char **)base;
+  size_t n = *nelp;
+  size_t i;
+  for (i = 0; i < n; i++)
+    if (compar(p[i], key) == 0)
+      return p[i];
+  return 0;
+}
+/* AVL tree height < 1.44*log2(nodes+2)-0.3, MAXH is a safe upper bound.  */
+struct _cee_tsearch_node {
+  const void *key;
+  void *a[2];
+  int h;
+};
+static int height(void *n) { return n ? ((struct _cee_tsearch_node *)n)->h : 0; }
+static int rot(void **p, struct _cee_tsearch_node *x, int dir /* deeper side */)
+{
+  struct _cee_tsearch_node *y = (struct _cee_tsearch_node *)x->a[dir];
+  struct _cee_tsearch_node *z = (struct _cee_tsearch_node *)y->a[!dir];
+  int hx = x->h;
+  int hz = height(z);
+  if (hz > height(y->a[dir])) {
+    /*
+     *   x
+     *  / \ dir          z
+     * A   y            /      *    / \   -->    x   y
+y
+     *   z   D        /|   |     *  / \          A B   C D
+D
+     * B   C
+     */
+    x->a[dir] = z->a[!dir];
+    y->a[!dir] = z->a[dir];
+    z->a[!dir] = x;
+    z->a[dir] = y;
+    x->h = hz;
+    y->h = hz;
+    z->h = hz+1;
+  } else {
+    /*
+     *   x               y
+     *  / \             /      * A   y    -->    x   D
+D
+     *    / \         /      *   z   D       A   z
+z
+     */
+    x->a[dir] = z;
+    y->a[!dir] = x;
+    x->h = hz+1;
+    y->h = hz+2;
+    z = y;
+  }
+  *p = z;
+  return z->h - hx;
+}
+/* balance *p, return 0 if height is unchanged.  */
+static int __tsearch_balance(void **p)
+{
+  struct _cee_tsearch_node *n = (struct _cee_tsearch_node *)*p;
+  int h0 = height(n->a[0]);
+  int h1 = height(n->a[1]);
+  if (h0 - h1 + 1u < 3u) {
+    int old = n->h;
+    n->h = h0<h1 ? h1+1 : h0+1;
+    return n->h - old;
+  }
+  return rot(p, n, h0<h1);
+}
+void *musl_tsearch(void *cxt, const void *key, void **rootp,
+  int (*cmp)(void *, const void *, const void *))
+{
+  if (!rootp)
+    return 0;
+  void **a[(sizeof(void*)*8*3/2)];
+  struct _cee_tsearch_node *n = (struct _cee_tsearch_node *)*rootp;
+  struct _cee_tsearch_node *r;
+  int i=0;
+  a[i++] = rootp;
+  for (;;) {
+    if (!n)
+      break;
+    int c = cmp(cxt, key, n->key);
+    if (!c)
+      return n;
+    a[i++] = &n->a[c>0];
+    n = (struct _cee_tsearch_node *)n->a[c>0];
+  }
+  r = (struct _cee_tsearch_node *)malloc(sizeof *r);
+  if (!r)
+    return 0;
+  r->key = key;
+  r->a[0] = r->a[1] = 0;
+  r->h = 1;
+  /* insert new node, rebalance ancestors.  */
+  *a[--i] = r;
+  while (i && __tsearch_balance(a[--i]));
+  return r;
+}
+void musl_tdestroy(void * cxt, void *root, void (*freekey)(void *, void *))
+{
+  struct _cee_tsearch_node *r = (struct _cee_tsearch_node *)root;
+  if (r == 0)
+    return;
+  musl_tdestroy(cxt, r->a[0], freekey);
+  musl_tdestroy(cxt, r->a[1], freekey);
+  if (freekey) freekey(cxt, (void *)r->key);
+  free(r);
+}
+void *musl_tfind(void * cxt, const void *key, void *const *rootp,
+  int(*cmp)(void * cxt, const void *, const void *))
+{
+  if (!rootp)
+    return 0;
+  struct _cee_tsearch_node *n = (struct _cee_tsearch_node *)*rootp;
+  for (;;) {
+    if (!n)
+      break;
+    int c = cmp(cxt, key, n->key);
+    if (!c)
+      break;
+    n = (struct _cee_tsearch_node *)n->a[c>0];
+  }
+  return n;
+}
+static void walk(void * cxt, struct _cee_tsearch_node *r,
+                 void (*action)(void *, const void *, VISIT, int), int d)
+{
+  if (!r)
+    return;
+  if (r->h == 1)
+    action(cxt, r, leaf, d);
+  else {
+    action(cxt, r, preorder, d);
+    walk(cxt, (struct _cee_tsearch_node *)r->a[0], action, d+1);
+    action(cxt, r, postorder, d);
+    walk(cxt, (struct _cee_tsearch_node *)r->a[1], action, d+1);
+    action(cxt, r, endorder, d);
+  }
+}
+void musl_twalk(void * cxt, const void *root,
+                void (*action)(void *, const void *, VISIT, int))
+{
+  walk(cxt, (struct _cee_tsearch_node *)root, action, 0);
+}
+void *musl_tdelete(void * cxt, const void * key, void ** rootp,
+  int(*cmp)(void * cxt, const void *, const void *))
+{
+  if (!rootp)
+    return 0;
+  void **a[(sizeof(void*)*8*3/2)+1];
+  struct _cee_tsearch_node *n = (struct _cee_tsearch_node *)*rootp;
+  struct _cee_tsearch_node *parent;
+  struct _cee_tsearch_node *child;
+  int i=0;
+  /* *a[0] is an arbitrary non-null pointer that is returned when
+     the root node is deleted.  */
+  a[i++] = rootp;
+  a[i++] = rootp;
+  for (;;) {
+    if (!n)
+      return 0;
+    int c = cmp(cxt, key, n->key);
+    if (!c)
+      break;
+    a[i++] = &n->a[c>0];
+    n = (struct _cee_tsearch_node *)n->a[c>0];
+  }
+  parent = (struct _cee_tsearch_node *)*a[i-2];
+  if (n->a[0]) {
+    /* free the preceding node instead of the deleted one.  */
+    struct _cee_tsearch_node *deleted = n;
+    a[i++] = &n->a[0];
+    n = (struct _cee_tsearch_node *)n->a[0];
+    while (n->a[1]) {
+      a[i++] = &n->a[1];
+      n = (struct _cee_tsearch_node *)n->a[1];
+    }
+    deleted->key = n->key;
+    child = (struct _cee_tsearch_node *)n->a[0];
+  } else {
+    child = (struct _cee_tsearch_node *)n->a[1];
+  }
+  /* freed node has at most one child, move it up and rebalance.  */
+  if (parent == n)
+    parent = NULL;
+  free(n);
+  *a[--i] = child;
+  while (--i && __tsearch_balance(a[i]));
+  return parent;
+}
 using namespace cee;
 void cee::trace (void *p, enum trace_action ta) {
   if (!p) cee::segfault();
@@ -1354,7 +1750,7 @@ dict::data * mk_e (state::data * s, enum del_policy o, size_t size) {
   size_t hsize = (size_t)((float)size * 1.25);
   memset(m->_, 0, sizeof(struct musl_hsearch_data));
   if (musl_hcreate_r(hsize, m->_)) {
-    return (dict::data *)(m->_);
+    return (dict::data *)(&m->_);
   }
   else {
     del(m->keys);
@@ -2263,7 +2659,7 @@ quadruple::data * mk_e (state::data * st, enum del_policy o[4],
   }
 }
 namespace cee {
-namespace list {
+  namespace list {
 struct _cee_list_header {
   uintptr_t size;
   uintptr_t capacity;
@@ -2984,363 +3380,4 @@ void gc (state::data * s) {
   }
 }
   }
-}
-/*
-open addressing hash table with 2^n table size
-quadratic probing is used in case of hash collision
-tab indices and hash are size_t
-after resize fails with ENOMEM the state of tab is still usable
-
-with the posix api items cannot be iterated and length cannot be queried
-*/
-struct __tab {
-  MUSL_ENTRY *entries;
-  size_t mask;
-  size_t used;
-};
-static struct musl_hsearch_data htab;
-/*
-static int musl_hcreate_r(size_t, struct musl_hsearch_data *);
-static void musl_hdestroy_r(struct musl_hsearch_data *);
-static int mul_hsearch_r(MUSL_ENTRY, ACTION, MUSL_ENTRY **, struct musl_hsearch_data *);
-*/
-static size_t keyhash(char *k)
-{
-  unsigned char *p = (unsigned char *)k;
-  size_t h = 0;
-  while (*p)
-    h = 31*h + *p++;
-  return h;
-}
-static int resize(size_t nel, struct musl_hsearch_data *htab)
-{
-  size_t newsize;
-  size_t i, j;
-  MUSL_ENTRY *e, *newe;
-  MUSL_ENTRY *oldtab = htab->__tab->entries;
-  MUSL_ENTRY *oldend = htab->__tab->entries + htab->__tab->mask + 1;
-  if (nel > ((size_t)-1/2 + 1))
-    nel = ((size_t)-1/2 + 1);
-  for (newsize = 8; newsize < nel; newsize *= 2);
-  htab->__tab->entries = (MUSL_ENTRY *)calloc(newsize, sizeof *htab->__tab->entries);
-  if (!htab->__tab->entries) {
-    htab->__tab->entries = oldtab;
-    return 0;
-  }
-  htab->__tab->mask = newsize - 1;
-  if (!oldtab)
-    return 1;
-  for (e = oldtab; e < oldend; e++)
-    if (e->key) {
-      for (i=keyhash(e->key),j=1; ; i+=j++) {
-        newe = htab->__tab->entries + (i & htab->__tab->mask);
-        if (!newe->key)
-          break;
-      }
-      *newe = *e;
-    }
-  free(oldtab);
-  return 1;
-}
-int musl_hcreate(size_t nel)
-{
-  return musl_hcreate_r(nel, &htab);
-}
-void musl_hdestroy(void)
-{
-  musl_hdestroy_r(&htab);
-}
-static MUSL_ENTRY *lookup(char *key, size_t hash, struct musl_hsearch_data *htab)
-{
-  size_t i, j;
-  MUSL_ENTRY *e;
-  for (i=hash,j=1; ; i+=j++) {
-    e = htab->__tab->entries + (i & htab->__tab->mask);
-    if (!e->key || strcmp(e->key, key) == 0)
-      break;
-  }
-  return e;
-}
-MUSL_ENTRY *musl_hsearch(MUSL_ENTRY item, ACTION action)
-{
-  MUSL_ENTRY *e;
-  musl_hsearch_r(item, action, &e, &htab);
-  return e;
-}
-int musl_hcreate_r(size_t nel, struct musl_hsearch_data *htab)
-{
-  int r;
-  htab->__tab = (struct __tab *) calloc(1, sizeof *htab->__tab);
-  if (!htab->__tab)
-    return 0;
-  r = resize(nel, htab);
-  if (r == 0) {
-    free(htab->__tab);
-    htab->__tab = 0;
-  }
-  return r;
-}
-void musl_hdestroy_r(struct musl_hsearch_data *htab)
-{
-  if (htab->__tab) free(htab->__tab->entries);
-  free(htab->__tab);
-  htab->__tab = 0;
-}
-int musl_hsearch_r(MUSL_ENTRY item, ACTION action, MUSL_ENTRY **retval,
-                   struct musl_hsearch_data *htab)
-{
-  size_t hash = keyhash(item.key);
-  MUSL_ENTRY *e = lookup(item.key, hash, htab);
-  if (e->key) {
-    *retval = e;
-    return 1;
-  }
-  if (action == FIND) {
-    *retval = 0;
-    return 0;
-  }
-  *e = item;
-  if (++htab->__tab->used > htab->__tab->mask - htab->__tab->mask/4) {
-    if (!resize(2*htab->__tab->used, htab)) {
-      htab->__tab->used--;
-      e->key = 0;
-      *retval = 0;
-      return 0;
-    }
-    e = lookup(item.key, hash, htab);
-  }
-  *retval = e;
-  return 1;
-}
-struct _musl_lsearch__node {
-  struct _musl_lsearch__node *next;
-  struct _musl_lsearch__node *prev;
-};
-void musl_insque(void *element, void *pred)
-{
-  struct _musl_lsearch__node *e = (struct _musl_lsearch__node *)element;
-  struct _musl_lsearch__node *p = (struct _musl_lsearch__node *)pred;
-  if (!p) {
-    e->next = e->prev = 0;
-    return;
-  }
-  e->next = p->next;
-  e->prev = p;
-  p->next = e;
-  if (e->next)
-    e->next->prev = e;
-}
-void musl_remque(void *element)
-{
-  struct _musl_lsearch__node *e = (struct _musl_lsearch__node *)element;
-  if (e->next)
-    e->next->prev = e->prev;
-  if (e->prev)
-    e->prev->next = e->next;
-}
-void *musl_lsearch(const void *key, void *base, size_t *nelp, size_t width,
-  int (*compar)(const void *, const void *))
-{
-  char **p = (char **)base;
-  size_t n = *nelp;
-  size_t i;
-  for (i = 0; i < n; i++)
-    if (compar(p[i], key) == 0)
-      return p[i];
-  *nelp = n+1;
-  // b.o. here when width is longer than the size of key
-  return memcpy(p[n], key, width);
-}
-void *musl_lfind(const void *key, const void *base, size_t *nelp,
-  size_t width, int (*compar)(const void *, const void *))
-{
-  char **p = (char **)base;
-  size_t n = *nelp;
-  size_t i;
-  for (i = 0; i < n; i++)
-    if (compar(p[i], key) == 0)
-      return p[i];
-  return 0;
-}
-/* AVL tree height < 1.44*log2(nodes+2)-0.3, MAXH is a safe upper bound.  */
-struct _cee_tsearch_node {
-  const void *key;
-  void *a[2];
-  int h;
-};
-static int height(void *n) { return n ? ((struct _cee_tsearch_node *)n)->h : 0; }
-static int rot(void **p, struct _cee_tsearch_node *x, int dir /* deeper side */)
-{
-  struct _cee_tsearch_node *y = (struct _cee_tsearch_node *)x->a[dir];
-  struct _cee_tsearch_node *z = (struct _cee_tsearch_node *)y->a[!dir];
-  int hx = x->h;
-  int hz = height(z);
-  if (hz > height(y->a[dir])) {
-    /*
-     *   x
-     *  / \ dir          z
-     * A   y            /      *    / \   -->    x   y
-y
-     *   z   D        /|   |     *  / \          A B   C D
-D
-     * B   C
-     */
-    x->a[dir] = z->a[!dir];
-    y->a[!dir] = z->a[dir];
-    z->a[!dir] = x;
-    z->a[dir] = y;
-    x->h = hz;
-    y->h = hz;
-    z->h = hz+1;
-  } else {
-    /*
-     *   x               y
-     *  / \             /      * A   y    -->    x   D
-D
-     *    / \         /      *   z   D       A   z
-z
-     */
-    x->a[dir] = z;
-    y->a[!dir] = x;
-    x->h = hz+1;
-    y->h = hz+2;
-    z = y;
-  }
-  *p = z;
-  return z->h - hx;
-}
-/* balance *p, return 0 if height is unchanged.  */
-static int __tsearch_balance(void **p)
-{
-  struct _cee_tsearch_node *n = (struct _cee_tsearch_node *)*p;
-  int h0 = height(n->a[0]);
-  int h1 = height(n->a[1]);
-  if (h0 - h1 + 1u < 3u) {
-    int old = n->h;
-    n->h = h0<h1 ? h1+1 : h0+1;
-    return n->h - old;
-  }
-  return rot(p, n, h0<h1);
-}
-void *musl_tsearch(void *cxt, const void *key, void **rootp,
-  int (*cmp)(void *, const void *, const void *))
-{
-  if (!rootp)
-    return 0;
-  void **a[(sizeof(void*)*8*3/2)];
-  struct _cee_tsearch_node *n = (struct _cee_tsearch_node *)*rootp;
-  struct _cee_tsearch_node *r;
-  int i=0;
-  a[i++] = rootp;
-  for (;;) {
-    if (!n)
-      break;
-    int c = cmp(cxt, key, n->key);
-    if (!c)
-      return n;
-    a[i++] = &n->a[c>0];
-    n = (struct _cee_tsearch_node *)n->a[c>0];
-  }
-  r = (struct _cee_tsearch_node *)malloc(sizeof *r);
-  if (!r)
-    return 0;
-  r->key = key;
-  r->a[0] = r->a[1] = 0;
-  r->h = 1;
-  /* insert new node, rebalance ancestors.  */
-  *a[--i] = r;
-  while (i && __tsearch_balance(a[--i]));
-  return r;
-}
-void musl_tdestroy(void * cxt, void *root, void (*freekey)(void *, void *))
-{
-  struct _cee_tsearch_node *r = (struct _cee_tsearch_node *)root;
-  if (r == 0)
-    return;
-  musl_tdestroy(cxt, r->a[0], freekey);
-  musl_tdestroy(cxt, r->a[1], freekey);
-  if (freekey) freekey(cxt, (void *)r->key);
-  free(r);
-}
-void *musl_tfind(void * cxt, const void *key, void *const *rootp,
-  int(*cmp)(void * cxt, const void *, const void *))
-{
-  if (!rootp)
-    return 0;
-  struct _cee_tsearch_node *n = (struct _cee_tsearch_node *)*rootp;
-  for (;;) {
-    if (!n)
-      break;
-    int c = cmp(cxt, key, n->key);
-    if (!c)
-      break;
-    n = (struct _cee_tsearch_node *)n->a[c>0];
-  }
-  return n;
-}
-static void walk(void * cxt, struct _cee_tsearch_node *r,
-                 void (*action)(void *, const void *, VISIT, int), int d)
-{
-  if (!r)
-    return;
-  if (r->h == 1)
-    action(cxt, r, leaf, d);
-  else {
-    action(cxt, r, preorder, d);
-    walk(cxt, (struct _cee_tsearch_node *)r->a[0], action, d+1);
-    action(cxt, r, postorder, d);
-    walk(cxt, (struct _cee_tsearch_node *)r->a[1], action, d+1);
-    action(cxt, r, endorder, d);
-  }
-}
-void musl_twalk(void * cxt, const void *root,
-                void (*action)(void *, const void *, VISIT, int))
-{
-  walk(cxt, (struct _cee_tsearch_node *)root, action, 0);
-}
-void *musl_tdelete(void * cxt, const void * key, void ** rootp,
-  int(*cmp)(void * cxt, const void *, const void *))
-{
-  if (!rootp)
-    return 0;
-  void **a[(sizeof(void*)*8*3/2)+1];
-  struct _cee_tsearch_node *n = (struct _cee_tsearch_node *)*rootp;
-  struct _cee_tsearch_node *parent;
-  struct _cee_tsearch_node *child;
-  int i=0;
-  /* *a[0] is an arbitrary non-null pointer that is returned when
-     the root node is deleted.  */
-  a[i++] = rootp;
-  a[i++] = rootp;
-  for (;;) {
-    if (!n)
-      return 0;
-    int c = cmp(cxt, key, n->key);
-    if (!c)
-      break;
-    a[i++] = &n->a[c>0];
-    n = (struct _cee_tsearch_node *)n->a[c>0];
-  }
-  parent = (struct _cee_tsearch_node *)*a[i-2];
-  if (n->a[0]) {
-    /* free the preceding node instead of the deleted one.  */
-    struct _cee_tsearch_node *deleted = n;
-    a[i++] = &n->a[0];
-    n = (struct _cee_tsearch_node *)n->a[0];
-    while (n->a[1]) {
-      a[i++] = &n->a[1];
-      n = (struct _cee_tsearch_node *)n->a[1];
-    }
-    deleted->key = n->key;
-    child = (struct _cee_tsearch_node *)n->a[0];
-  } else {
-    child = (struct _cee_tsearch_node *)n->a[1];
-  }
-  /* freed node has at most one child, move it up and rebalance.  */
-  if (parent == n)
-    parent = NULL;
-  free(n);
-  *a[--i] = child;
-  while (--i && __tsearch_balance(a[i]));
-  return parent;
 }

@@ -13,7 +13,7 @@
 #include "cee-header.h"
 
 namespace cee {
-namespace list {
+  namespace list {
 
 struct S(header) {
   uintptr_t size;

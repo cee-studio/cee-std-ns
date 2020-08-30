@@ -1,11 +1,11 @@
-CEE_SRC=cee-common.cpp boxed.cpp str.cpp dict.cpp map.cpp set.cpp stack.cpp \
+CEE_SRC=musl-search.h musl-hsearch.c musl-insque.c musl-lsearch.c musl-tsearch.c \
+  cee-common.cpp boxed.cpp str.cpp dict.cpp map.cpp set.cpp stack.cpp \
   tuple.cpp triple.cpp quadruple.cpp list.cpp tagged.cpp singleton.cpp \
-  closure.cpp block.cpp n_tuple.cpp env.cpp state.cpp musl-hsearch.c \
-  musl-insque.c musl-lsearch.c musl-tsearch.c
+  closure.cpp block.cpp n_tuple.cpp env.cpp state.cpp 
 
 CXXFLAGS= -fno-rtti -fno-exceptions -g
 
-HEADERS=stdio.h string.h stdlib.h stdarg.h assert.h errno.h
+HEADERS=stddef.h stdio.h string.h stdlib.h stdarg.h assert.h errno.h
 
 define cee_amalgamation
 	@echo "#define CEE_AMALGAMATION" > tmp.cpp

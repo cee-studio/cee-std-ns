@@ -123,7 +123,7 @@ int main () {
   /* test diction */
   dict::data * dict = dict::mk(st, 100);
   
-  for (i = 0; i < 200; i++)
+  for (i = 0; i < 1000; i++)
     dict::add(dict, str::mk(st, "%d", i)->_, str::mk(st, "value %d", i));
 
   str::data * key = str::mk(st, "9");
