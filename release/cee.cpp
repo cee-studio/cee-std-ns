@@ -727,27 +727,6 @@ struct _cee_boxed_header {
   struct sect cs;
   union primitive_value _[1];
 };
-static struct _cee_boxed_header * _cee_boxed_resize(struct _cee_boxed_header * h, size_t n)
-{
-  struct _cee_boxed_header * ret;
-  switch(h->cs.resize_method)
-  {
-    case resize_with_realloc:
-      /* TODO: check if this block is registered as gc_root */
-     ret = (struct _cee_boxed_header *)realloc(h, n);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_malloc:
-     ret = (struct _cee_boxed_header *)malloc(n);
-     memcpy(ret, h, h->cs.mem_block_size);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_identity:
-      ret = h;
-      break;
-  }
-  return ret;
-}
 static void _cee_boxed_chain (struct _cee_boxed_header * h, state::data * st) {
   h->cs.state = st;
   h->cs.trace_prev = st->trace_tail;
@@ -767,6 +746,30 @@ static void _cee_boxed_de_chain (struct _cee_boxed_header * h) {
     if (next)
       next->trace_prev = prev;
   }
+}
+static struct _cee_boxed_header * _cee_boxed_resize(struct _cee_boxed_header * h, size_t n)
+{
+  state::data * state = h->cs.state;
+  struct _cee_boxed_header * ret;
+  switch(h->cs.resize_method)
+  {
+    case resize_with_realloc:
+      _cee_boxed_de_chain(h);
+     ret = (struct _cee_boxed_header *)realloc(h, n);
+      ret->cs.mem_block_size = n;
+      _cee_boxed_chain(ret, state);
+      break;
+    case resize_with_malloc:
+     ret = (struct _cee_boxed_header *)malloc(n);
+     memcpy(ret, h, h->cs.mem_block_size);
+      ret->cs.mem_block_size = n;
+      _cee_boxed_chain(ret, state);
+      break;
+    case resize_with_identity:
+      ret = h;
+      break;
+  }
+  return ret;
 }
 static void _cee_boxed_trace (void * v, enum trace_action ta) {
   struct _cee_boxed_header * m = (struct _cee_boxed_header *)((void *)((char *)(v) - (__builtin_offsetof(struct _cee_boxed_header, _))));
@@ -1067,27 +1070,6 @@ struct _cee_str_header {
   struct sect cs;
   char _[1];
 };
-static struct _cee_str_header * _cee_str_resize(struct _cee_str_header * h, size_t n)
-{
-  struct _cee_str_header * ret;
-  switch(h->cs.resize_method)
-  {
-    case resize_with_realloc:
-      /* TODO: check if this block is registered as gc_root */
-     ret = (struct _cee_str_header *)realloc(h, n);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_malloc:
-     ret = (struct _cee_str_header *)malloc(n);
-     memcpy(ret, h, h->cs.mem_block_size);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_identity:
-      ret = h;
-      break;
-  }
-  return ret;
-}
 static void _cee_str_chain (struct _cee_str_header * h, state::data * st) {
   h->cs.state = st;
   h->cs.trace_prev = st->trace_tail;
@@ -1107,6 +1089,30 @@ static void _cee_str_de_chain (struct _cee_str_header * h) {
     if (next)
       next->trace_prev = prev;
   }
+}
+static struct _cee_str_header * _cee_str_resize(struct _cee_str_header * h, size_t n)
+{
+  state::data * state = h->cs.state;
+  struct _cee_str_header * ret;
+  switch(h->cs.resize_method)
+  {
+    case resize_with_realloc:
+      _cee_str_de_chain(h);
+     ret = (struct _cee_str_header *)realloc(h, n);
+      ret->cs.mem_block_size = n;
+      _cee_str_chain(ret, state);
+      break;
+    case resize_with_malloc:
+     ret = (struct _cee_str_header *)malloc(n);
+     memcpy(ret, h, h->cs.mem_block_size);
+      ret->cs.mem_block_size = n;
+      _cee_str_chain(ret, state);
+      break;
+    case resize_with_identity:
+      ret = h;
+      break;
+  }
+  return ret;
 }
 static void _cee_str_trace (void * p, enum trace_action ta) {
   struct _cee_str_header * m = (struct _cee_str_header *)((void *)((char *)(p) - (__builtin_offsetof(struct _cee_str_header, _))));
@@ -1259,27 +1265,6 @@ struct _cee_dict_header {
   struct sect cs;
   struct musl_hsearch_data _[1];
 };
-static struct _cee_dict_header * _cee_dict_resize(struct _cee_dict_header * h, size_t n)
-{
-  struct _cee_dict_header * ret;
-  switch(h->cs.resize_method)
-  {
-    case resize_with_realloc:
-      /* TODO: check if this block is registered as gc_root */
-     ret = (struct _cee_dict_header *)realloc(h, n);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_malloc:
-     ret = (struct _cee_dict_header *)malloc(n);
-     memcpy(ret, h, h->cs.mem_block_size);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_identity:
-      ret = h;
-      break;
-  }
-  return ret;
-}
 static void _cee_dict_chain (struct _cee_dict_header * h, state::data * st) {
   h->cs.state = st;
   h->cs.trace_prev = st->trace_tail;
@@ -1299,6 +1284,30 @@ static void _cee_dict_de_chain (struct _cee_dict_header * h) {
     if (next)
       next->trace_prev = prev;
   }
+}
+static struct _cee_dict_header * _cee_dict_resize(struct _cee_dict_header * h, size_t n)
+{
+  state::data * state = h->cs.state;
+  struct _cee_dict_header * ret;
+  switch(h->cs.resize_method)
+  {
+    case resize_with_realloc:
+      _cee_dict_de_chain(h);
+     ret = (struct _cee_dict_header *)realloc(h, n);
+      ret->cs.mem_block_size = n;
+      _cee_dict_chain(ret, state);
+      break;
+    case resize_with_malloc:
+     ret = (struct _cee_dict_header *)malloc(n);
+     memcpy(ret, h, h->cs.mem_block_size);
+      ret->cs.mem_block_size = n;
+      _cee_dict_chain(ret, state);
+      break;
+    case resize_with_identity:
+      ret = h;
+      break;
+  }
+  return ret;
 }
 static void _cee_dict_trace(void *d, enum trace_action ta) {
   struct _cee_dict_header * m = (struct _cee_dict_header *)((void *)((char *)(d) - (__builtin_offsetof(struct _cee_dict_header, _))));
@@ -1386,27 +1395,6 @@ struct _cee_map_header {
   struct sect cs;
   void * _[1];
 };
-static struct _cee_map_header * _cee_map_resize(struct _cee_map_header * h, size_t n)
-{
-  struct _cee_map_header * ret;
-  switch(h->cs.resize_method)
-  {
-    case resize_with_realloc:
-      /* TODO: check if this block is registered as gc_root */
-     ret = (struct _cee_map_header *)realloc(h, n);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_malloc:
-     ret = (struct _cee_map_header *)malloc(n);
-     memcpy(ret, h, h->cs.mem_block_size);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_identity:
-      ret = h;
-      break;
-  }
-  return ret;
-}
 static void _cee_map_chain (struct _cee_map_header * h, state::data * st) {
   h->cs.state = st;
   h->cs.trace_prev = st->trace_tail;
@@ -1426,6 +1414,30 @@ static void _cee_map_de_chain (struct _cee_map_header * h) {
     if (next)
       next->trace_prev = prev;
   }
+}
+static struct _cee_map_header * _cee_map_resize(struct _cee_map_header * h, size_t n)
+{
+  state::data * state = h->cs.state;
+  struct _cee_map_header * ret;
+  switch(h->cs.resize_method)
+  {
+    case resize_with_realloc:
+      _cee_map_de_chain(h);
+     ret = (struct _cee_map_header *)realloc(h, n);
+      ret->cs.mem_block_size = n;
+      _cee_map_chain(ret, state);
+      break;
+    case resize_with_malloc:
+     ret = (struct _cee_map_header *)malloc(n);
+     memcpy(ret, h, h->cs.mem_block_size);
+      ret->cs.mem_block_size = n;
+      _cee_map_chain(ret, state);
+      break;
+    case resize_with_identity:
+      ret = h;
+      break;
+  }
+  return ret;
 }
 static void _cee_map_free_pair_follow(void * cxt, void * c) {
   del(c);
@@ -1593,27 +1605,6 @@ struct _cee_set_header {
   struct sect cs;
   void * _[1];
 };
-static struct _cee_set_header * _cee_set_resize(struct _cee_set_header * h, size_t n)
-{
-  struct _cee_set_header * ret;
-  switch(h->cs.resize_method)
-  {
-    case resize_with_realloc:
-      /* TODO: check if this block is registered as gc_root */
-     ret = (struct _cee_set_header *)realloc(h, n);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_malloc:
-     ret = (struct _cee_set_header *)malloc(n);
-     memcpy(ret, h, h->cs.mem_block_size);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_identity:
-      ret = h;
-      break;
-  }
-  return ret;
-}
 static void _cee_set_chain (struct _cee_set_header * h, state::data * st) {
   h->cs.state = st;
   h->cs.trace_prev = st->trace_tail;
@@ -1633,6 +1624,30 @@ static void _cee_set_de_chain (struct _cee_set_header * h) {
     if (next)
       next->trace_prev = prev;
   }
+}
+static struct _cee_set_header * _cee_set_resize(struct _cee_set_header * h, size_t n)
+{
+  state::data * state = h->cs.state;
+  struct _cee_set_header * ret;
+  switch(h->cs.resize_method)
+  {
+    case resize_with_realloc:
+      _cee_set_de_chain(h);
+     ret = (struct _cee_set_header *)realloc(h, n);
+      ret->cs.mem_block_size = n;
+      _cee_set_chain(ret, state);
+      break;
+    case resize_with_malloc:
+     ret = (struct _cee_set_header *)malloc(n);
+     memcpy(ret, h, h->cs.mem_block_size);
+      ret->cs.mem_block_size = n;
+      _cee_set_chain(ret, state);
+      break;
+    case resize_with_identity:
+      ret = h;
+      break;
+  }
+  return ret;
 }
 static void _cee_set_free_pair_follow (void * cxt, void * c) {
   enum del_policy dp = * (enum del_policy *) cxt;
@@ -1816,27 +1831,6 @@ struct _cee_stack_header {
   struct sect cs;
   void * _[];
 };
-static struct _cee_stack_header * _cee_stack_resize(struct _cee_stack_header * h, size_t n)
-{
-  struct _cee_stack_header * ret;
-  switch(h->cs.resize_method)
-  {
-    case resize_with_realloc:
-      /* TODO: check if this block is registered as gc_root */
-     ret = (struct _cee_stack_header *)realloc(h, n);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_malloc:
-     ret = (struct _cee_stack_header *)malloc(n);
-     memcpy(ret, h, h->cs.mem_block_size);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_identity:
-      ret = h;
-      break;
-  }
-  return ret;
-}
 static void _cee_stack_chain (struct _cee_stack_header * h, state::data * st) {
   h->cs.state = st;
   h->cs.trace_prev = st->trace_tail;
@@ -1856,6 +1850,30 @@ static void _cee_stack_de_chain (struct _cee_stack_header * h) {
     if (next)
       next->trace_prev = prev;
   }
+}
+static struct _cee_stack_header * _cee_stack_resize(struct _cee_stack_header * h, size_t n)
+{
+  state::data * state = h->cs.state;
+  struct _cee_stack_header * ret;
+  switch(h->cs.resize_method)
+  {
+    case resize_with_realloc:
+      _cee_stack_de_chain(h);
+     ret = (struct _cee_stack_header *)realloc(h, n);
+      ret->cs.mem_block_size = n;
+      _cee_stack_chain(ret, state);
+      break;
+    case resize_with_malloc:
+     ret = (struct _cee_stack_header *)malloc(n);
+     memcpy(ret, h, h->cs.mem_block_size);
+      ret->cs.mem_block_size = n;
+      _cee_stack_chain(ret, state);
+      break;
+    case resize_with_identity:
+      ret = h;
+      break;
+  }
+  return ret;
 }
 static void _cee_stack_trace (void * v, enum trace_action ta) {
   struct _cee_stack_header * m = (struct _cee_stack_header *)((void *)((char *)(v) - (__builtin_offsetof(struct _cee_stack_header, _))));
@@ -1955,27 +1973,6 @@ struct _cee_tuple_header {
   struct sect cs;
   void * _[2];
 };
-static struct _cee_tuple_header * _cee_tuple_resize(struct _cee_tuple_header * h, size_t n)
-{
-  struct _cee_tuple_header * ret;
-  switch(h->cs.resize_method)
-  {
-    case resize_with_realloc:
-      /* TODO: check if this block is registered as gc_root */
-     ret = (struct _cee_tuple_header *)realloc(h, n);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_malloc:
-     ret = (struct _cee_tuple_header *)malloc(n);
-     memcpy(ret, h, h->cs.mem_block_size);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_identity:
-      ret = h;
-      break;
-  }
-  return ret;
-}
 static void _cee_tuple_chain (struct _cee_tuple_header * h, state::data * st) {
   h->cs.state = st;
   h->cs.trace_prev = st->trace_tail;
@@ -1995,6 +1992,30 @@ static void _cee_tuple_de_chain (struct _cee_tuple_header * h) {
     if (next)
       next->trace_prev = prev;
   }
+}
+static struct _cee_tuple_header * _cee_tuple_resize(struct _cee_tuple_header * h, size_t n)
+{
+  state::data * state = h->cs.state;
+  struct _cee_tuple_header * ret;
+  switch(h->cs.resize_method)
+  {
+    case resize_with_realloc:
+      _cee_tuple_de_chain(h);
+     ret = (struct _cee_tuple_header *)realloc(h, n);
+      ret->cs.mem_block_size = n;
+      _cee_tuple_chain(ret, state);
+      break;
+    case resize_with_malloc:
+     ret = (struct _cee_tuple_header *)malloc(n);
+     memcpy(ret, h, h->cs.mem_block_size);
+      ret->cs.mem_block_size = n;
+      _cee_tuple_chain(ret, state);
+      break;
+    case resize_with_identity:
+      ret = h;
+      break;
+  }
+  return ret;
 }
 static void _cee_tuple_trace(void * v, enum trace_action ta) {
   struct _cee_tuple_header * b = (struct _cee_tuple_header *)((void *)((char *)(v) - (__builtin_offsetof(struct _cee_tuple_header, _))));
@@ -2048,27 +2069,6 @@ struct _cee_triple_header {
   struct sect cs;
   void * _[3];
 };
-static struct _cee_triple_header * _cee_triple_resize(struct _cee_triple_header * h, size_t n)
-{
-  struct _cee_triple_header * ret;
-  switch(h->cs.resize_method)
-  {
-    case resize_with_realloc:
-      /* TODO: check if this block is registered as gc_root */
-     ret = (struct _cee_triple_header *)realloc(h, n);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_malloc:
-     ret = (struct _cee_triple_header *)malloc(n);
-     memcpy(ret, h, h->cs.mem_block_size);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_identity:
-      ret = h;
-      break;
-  }
-  return ret;
-}
 static void _cee_triple_chain (struct _cee_triple_header * h, state::data * st) {
   h->cs.state = st;
   h->cs.trace_prev = st->trace_tail;
@@ -2088,6 +2088,30 @@ static void _cee_triple_de_chain (struct _cee_triple_header * h) {
     if (next)
       next->trace_prev = prev;
   }
+}
+static struct _cee_triple_header * _cee_triple_resize(struct _cee_triple_header * h, size_t n)
+{
+  state::data * state = h->cs.state;
+  struct _cee_triple_header * ret;
+  switch(h->cs.resize_method)
+  {
+    case resize_with_realloc:
+      _cee_triple_de_chain(h);
+     ret = (struct _cee_triple_header *)realloc(h, n);
+      ret->cs.mem_block_size = n;
+      _cee_triple_chain(ret, state);
+      break;
+    case resize_with_malloc:
+     ret = (struct _cee_triple_header *)malloc(n);
+     memcpy(ret, h, h->cs.mem_block_size);
+      ret->cs.mem_block_size = n;
+      _cee_triple_chain(ret, state);
+      break;
+    case resize_with_identity:
+      ret = h;
+      break;
+  }
+  return ret;
 }
 static void _cee_triple_trace(void * v, enum trace_action ta) {
   struct _cee_triple_header * b = (struct _cee_triple_header *)((void *)((char *)(v) - (__builtin_offsetof(struct _cee_triple_header, _))));
@@ -2144,27 +2168,6 @@ struct _cee_quadruple_header {
   struct sect cs;
   void * _[4];
 };
-static struct _cee_quadruple_header * _cee_quadruple_resize(struct _cee_quadruple_header * h, size_t n)
-{
-  struct _cee_quadruple_header * ret;
-  switch(h->cs.resize_method)
-  {
-    case resize_with_realloc:
-      /* TODO: check if this block is registered as gc_root */
-     ret = (struct _cee_quadruple_header *)realloc(h, n);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_malloc:
-     ret = (struct _cee_quadruple_header *)malloc(n);
-     memcpy(ret, h, h->cs.mem_block_size);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_identity:
-      ret = h;
-      break;
-  }
-  return ret;
-}
 static void _cee_quadruple_chain (struct _cee_quadruple_header * h, state::data * st) {
   h->cs.state = st;
   h->cs.trace_prev = st->trace_tail;
@@ -2184,6 +2187,30 @@ static void _cee_quadruple_de_chain (struct _cee_quadruple_header * h) {
     if (next)
       next->trace_prev = prev;
   }
+}
+static struct _cee_quadruple_header * _cee_quadruple_resize(struct _cee_quadruple_header * h, size_t n)
+{
+  state::data * state = h->cs.state;
+  struct _cee_quadruple_header * ret;
+  switch(h->cs.resize_method)
+  {
+    case resize_with_realloc:
+      _cee_quadruple_de_chain(h);
+     ret = (struct _cee_quadruple_header *)realloc(h, n);
+      ret->cs.mem_block_size = n;
+      _cee_quadruple_chain(ret, state);
+      break;
+    case resize_with_malloc:
+     ret = (struct _cee_quadruple_header *)malloc(n);
+     memcpy(ret, h, h->cs.mem_block_size);
+      ret->cs.mem_block_size = n;
+      _cee_quadruple_chain(ret, state);
+      break;
+    case resize_with_identity:
+      ret = h;
+      break;
+  }
+  return ret;
 }
 static void _cee_quadruple_trace(void * v, enum trace_action ta) {
   struct _cee_quadruple_header * b = (struct _cee_quadruple_header *)((void *)((char *)(v) - (__builtin_offsetof(struct _cee_quadruple_header, _))));
@@ -2239,27 +2266,6 @@ struct _cee_list_header {
   struct sect cs;
   void * _[];
 };
-static struct _cee_list_header * _cee_list_resize(struct _cee_list_header * h, size_t n)
-{
-  struct _cee_list_header * ret;
-  switch(h->cs.resize_method)
-  {
-    case resize_with_realloc:
-      /* TODO: check if this block is registered as gc_root */
-     ret = (struct _cee_list_header *)realloc(h, n);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_malloc:
-     ret = (struct _cee_list_header *)malloc(n);
-     memcpy(ret, h, h->cs.mem_block_size);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_identity:
-      ret = h;
-      break;
-  }
-  return ret;
-}
 static void _cee_list_chain (struct _cee_list_header * h, state::data * st) {
   h->cs.state = st;
   h->cs.trace_prev = st->trace_tail;
@@ -2279,6 +2285,30 @@ static void _cee_list_de_chain (struct _cee_list_header * h) {
     if (next)
       next->trace_prev = prev;
   }
+}
+static struct _cee_list_header * _cee_list_resize(struct _cee_list_header * h, size_t n)
+{
+  state::data * state = h->cs.state;
+  struct _cee_list_header * ret;
+  switch(h->cs.resize_method)
+  {
+    case resize_with_realloc:
+      _cee_list_de_chain(h);
+     ret = (struct _cee_list_header *)realloc(h, n);
+      ret->cs.mem_block_size = n;
+      _cee_list_chain(ret, state);
+      break;
+    case resize_with_malloc:
+     ret = (struct _cee_list_header *)malloc(n);
+     memcpy(ret, h, h->cs.mem_block_size);
+      ret->cs.mem_block_size = n;
+      _cee_list_chain(ret, state);
+      break;
+    case resize_with_identity:
+      ret = h;
+      break;
+  }
+  return ret;
 }
 static void _cee_list_trace (void * v, enum trace_action ta) {
   struct _cee_list_header * m = (struct _cee_list_header *)((void *)((char *)(v) - (__builtin_offsetof(struct _cee_list_header, _))));
@@ -2387,27 +2417,6 @@ struct _cee_tagged_header {
   struct sect cs;
   struct tagged::data _;
 };
-static struct _cee_tagged_header * _cee_tagged_resize(struct _cee_tagged_header * h, size_t n)
-{
-  struct _cee_tagged_header * ret;
-  switch(h->cs.resize_method)
-  {
-    case resize_with_realloc:
-      /* TODO: check if this block is registered as gc_root */
-     ret = (struct _cee_tagged_header *)realloc(h, n);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_malloc:
-     ret = (struct _cee_tagged_header *)malloc(n);
-     memcpy(ret, h, h->cs.mem_block_size);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_identity:
-      ret = h;
-      break;
-  }
-  return ret;
-}
 static void _cee_tagged_chain (struct _cee_tagged_header * h, state::data * st) {
   h->cs.state = st;
   h->cs.trace_prev = st->trace_tail;
@@ -2427,6 +2436,30 @@ static void _cee_tagged_de_chain (struct _cee_tagged_header * h) {
     if (next)
       next->trace_prev = prev;
   }
+}
+static struct _cee_tagged_header * _cee_tagged_resize(struct _cee_tagged_header * h, size_t n)
+{
+  state::data * state = h->cs.state;
+  struct _cee_tagged_header * ret;
+  switch(h->cs.resize_method)
+  {
+    case resize_with_realloc:
+      _cee_tagged_de_chain(h);
+     ret = (struct _cee_tagged_header *)realloc(h, n);
+      ret->cs.mem_block_size = n;
+      _cee_tagged_chain(ret, state);
+      break;
+    case resize_with_malloc:
+     ret = (struct _cee_tagged_header *)malloc(n);
+     memcpy(ret, h, h->cs.mem_block_size);
+      ret->cs.mem_block_size = n;
+      _cee_tagged_chain(ret, state);
+      break;
+    case resize_with_identity:
+      ret = h;
+      break;
+  }
+  return ret;
 }
 static void _cee_tagged_trace (void * v, enum trace_action ta) {
   struct _cee_tagged_header * m = (struct _cee_tagged_header *)((void *)((char *)(v) - (__builtin_offsetof(struct _cee_tagged_header, _))));
@@ -2499,27 +2532,6 @@ struct _cee_closure_header {
   struct sect cs;
   struct data _;
 };
-static struct _cee_closure_header * _cee_closure_resize(struct _cee_closure_header * h, size_t n)
-{
-  struct _cee_closure_header * ret;
-  switch(h->cs.resize_method)
-  {
-    case resize_with_realloc:
-      /* TODO: check if this block is registered as gc_root */
-     ret = (struct _cee_closure_header *)realloc(h, n);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_malloc:
-     ret = (struct _cee_closure_header *)malloc(n);
-     memcpy(ret, h, h->cs.mem_block_size);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_identity:
-      ret = h;
-      break;
-  }
-  return ret;
-}
 static void _cee_closure_chain (struct _cee_closure_header * h, state::data * st) {
   h->cs.state = st;
   h->cs.trace_prev = st->trace_tail;
@@ -2539,6 +2551,30 @@ static void _cee_closure_de_chain (struct _cee_closure_header * h) {
     if (next)
       next->trace_prev = prev;
   }
+}
+static struct _cee_closure_header * _cee_closure_resize(struct _cee_closure_header * h, size_t n)
+{
+  state::data * state = h->cs.state;
+  struct _cee_closure_header * ret;
+  switch(h->cs.resize_method)
+  {
+    case resize_with_realloc:
+      _cee_closure_de_chain(h);
+     ret = (struct _cee_closure_header *)realloc(h, n);
+      ret->cs.mem_block_size = n;
+      _cee_closure_chain(ret, state);
+      break;
+    case resize_with_malloc:
+     ret = (struct _cee_closure_header *)malloc(n);
+     memcpy(ret, h, h->cs.mem_block_size);
+      ret->cs.mem_block_size = n;
+      _cee_closure_chain(ret, state);
+      break;
+    case resize_with_identity:
+      ret = h;
+      break;
+  }
+  return ret;
 }
 static void _cee_closure_trace (void * v, enum trace_action sa) {
   struct _cee_closure_header * m = (struct _cee_closure_header *)((void *)((char *)(v) - (__builtin_offsetof(struct _cee_closure_header, _))));
@@ -2574,27 +2610,6 @@ struct _cee_block_header {
   struct sect cs;
   char _[1]; // actual data
 };
-static struct _cee_block_header * _cee_block_resize(struct _cee_block_header * h, size_t n)
-{
-  struct _cee_block_header * ret;
-  switch(h->cs.resize_method)
-  {
-    case resize_with_realloc:
-      /* TODO: check if this block is registered as gc_root */
-     ret = (struct _cee_block_header *)realloc(h, n);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_malloc:
-     ret = (struct _cee_block_header *)malloc(n);
-     memcpy(ret, h, h->cs.mem_block_size);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_identity:
-      ret = h;
-      break;
-  }
-  return ret;
-}
 static void _cee_block_chain (struct _cee_block_header * h, state::data * st) {
   h->cs.state = st;
   h->cs.trace_prev = st->trace_tail;
@@ -2614,6 +2629,30 @@ static void _cee_block_de_chain (struct _cee_block_header * h) {
     if (next)
       next->trace_prev = prev;
   }
+}
+static struct _cee_block_header * _cee_block_resize(struct _cee_block_header * h, size_t n)
+{
+  state::data * state = h->cs.state;
+  struct _cee_block_header * ret;
+  switch(h->cs.resize_method)
+  {
+    case resize_with_realloc:
+      _cee_block_de_chain(h);
+     ret = (struct _cee_block_header *)realloc(h, n);
+      ret->cs.mem_block_size = n;
+      _cee_block_chain(ret, state);
+      break;
+    case resize_with_malloc:
+     ret = (struct _cee_block_header *)malloc(n);
+     memcpy(ret, h, h->cs.mem_block_size);
+      ret->cs.mem_block_size = n;
+      _cee_block_chain(ret, state);
+      break;
+    case resize_with_identity:
+      ret = h;
+      break;
+  }
+  return ret;
 }
 static void _cee_block_trace (void * p, enum trace_action ta) {
   struct _cee_block_header * m = (struct _cee_block_header *)(struct _cee_block_header *)((void *)((char *)(p) - (__builtin_offsetof(struct _cee_block_header, _))));
@@ -2654,27 +2693,6 @@ struct _cee_n_tuple_header {
   struct sect cs;
   void * _[16];
 };
-static struct _cee_n_tuple_header * _cee_n_tuple_resize(struct _cee_n_tuple_header * h, size_t n)
-{
-  struct _cee_n_tuple_header * ret;
-  switch(h->cs.resize_method)
-  {
-    case resize_with_realloc:
-      /* TODO: check if this block is registered as gc_root */
-     ret = (struct _cee_n_tuple_header *)realloc(h, n);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_malloc:
-     ret = (struct _cee_n_tuple_header *)malloc(n);
-     memcpy(ret, h, h->cs.mem_block_size);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_identity:
-      ret = h;
-      break;
-  }
-  return ret;
-}
 static void _cee_n_tuple_chain (struct _cee_n_tuple_header * h, state::data * st) {
   h->cs.state = st;
   h->cs.trace_prev = st->trace_tail;
@@ -2694,6 +2712,30 @@ static void _cee_n_tuple_de_chain (struct _cee_n_tuple_header * h) {
     if (next)
       next->trace_prev = prev;
   }
+}
+static struct _cee_n_tuple_header * _cee_n_tuple_resize(struct _cee_n_tuple_header * h, size_t n)
+{
+  state::data * state = h->cs.state;
+  struct _cee_n_tuple_header * ret;
+  switch(h->cs.resize_method)
+  {
+    case resize_with_realloc:
+      _cee_n_tuple_de_chain(h);
+     ret = (struct _cee_n_tuple_header *)realloc(h, n);
+      ret->cs.mem_block_size = n;
+      _cee_n_tuple_chain(ret, state);
+      break;
+    case resize_with_malloc:
+     ret = (struct _cee_n_tuple_header *)malloc(n);
+     memcpy(ret, h, h->cs.mem_block_size);
+      ret->cs.mem_block_size = n;
+      _cee_n_tuple_chain(ret, state);
+      break;
+    case resize_with_identity:
+      ret = h;
+      break;
+  }
+  return ret;
 }
 static void _cee_n_tuple_trace(void * v, enum trace_action ta) {
   struct _cee_n_tuple_header * b = (struct _cee_n_tuple_header *)((void *)((char *)(v) - (__builtin_offsetof(struct _cee_n_tuple_header, _))));
@@ -2757,27 +2799,6 @@ struct _cee_env_header {
   struct sect cs;
   struct data _;
 };
-static struct _cee_env_header * _cee_env_resize(struct _cee_env_header * h, size_t n)
-{
-  struct _cee_env_header * ret;
-  switch(h->cs.resize_method)
-  {
-    case resize_with_realloc:
-      /* TODO: check if this block is registered as gc_root */
-     ret = (struct _cee_env_header *)realloc(h, n);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_malloc:
-     ret = (struct _cee_env_header *)malloc(n);
-     memcpy(ret, h, h->cs.mem_block_size);
-      ret->cs.mem_block_size = n;
-      break;
-    case resize_with_identity:
-      ret = h;
-      break;
-  }
-  return ret;
-}
 static void _cee_env_chain (struct _cee_env_header * h, state::data * st) {
   h->cs.state = st;
   h->cs.trace_prev = st->trace_tail;
@@ -2797,6 +2818,30 @@ static void _cee_env_de_chain (struct _cee_env_header * h) {
     if (next)
       next->trace_prev = prev;
   }
+}
+static struct _cee_env_header * _cee_env_resize(struct _cee_env_header * h, size_t n)
+{
+  state::data * state = h->cs.state;
+  struct _cee_env_header * ret;
+  switch(h->cs.resize_method)
+  {
+    case resize_with_realloc:
+      _cee_env_de_chain(h);
+     ret = (struct _cee_env_header *)realloc(h, n);
+      ret->cs.mem_block_size = n;
+      _cee_env_chain(ret, state);
+      break;
+    case resize_with_malloc:
+     ret = (struct _cee_env_header *)malloc(n);
+     memcpy(ret, h, h->cs.mem_block_size);
+      ret->cs.mem_block_size = n;
+      _cee_env_chain(ret, state);
+      break;
+    case resize_with_identity:
+      ret = h;
+      break;
+  }
+  return ret;
 }
 static void _cee_env_trace (void * v, enum trace_action ta) {
   struct _cee_env_header * h = (struct _cee_env_header *)((void *)((char *)(v) - (__builtin_offsetof(struct _cee_env_header, _))));
