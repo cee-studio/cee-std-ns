@@ -26,31 +26,19 @@ struct S(header) {
     
 #include "cee-resize.h"
 
-struct S(pair) {
-  tuple::data * value;
-  struct S(header) * h;
-};
-
 static void S(free_pair_follow)(void * cxt, void * c) {
-  struct S(pair) * p = (struct S(pair) *)c;
-  del(p->value);
-  free(p);
-}
-    
-static void S(free_pair_no_follow)(void * cxt, void * c) {
-  struct S(pair) * p = (struct S(pair) *)c;
-  free(p);
+  del(c);
 }
         
 static void S(trace_pair) (void * cxt, const void *nodep, const VISIT which, const int depth) {
-  struct S(pair) * p;
+  tuple::data * p;
   struct S(header) * h;
   switch (which) 
   {
     case preorder:
     case leaf:
-      p = (S(pair) *)*(void **)nodep;
-      trace(p->value, *(enum trace_action *)cxt);
+      p = (tuple::data *)*(void **)nodep;
+      trace(p, *(enum trace_action *)cxt);
       break;
     default:
       break;
@@ -61,7 +49,7 @@ static void S(trace)(void * p, enum trace_action ta) {
   struct S(header) * h = FIND_HEADER (p);
   switch (ta) {
     case trace_del_no_follow:
-      musl_tdestroy(NULL, h->_[0], S(free_pair_no_follow));
+      musl_tdestroy(NULL, h->_[0], NULL);
       S(de_chain)(h);
       free(h);
       break;
@@ -80,9 +68,9 @@ static void S(trace)(void * p, enum trace_action ta) {
 
 static int S(cmp) (void * cxt, const void * v1, const void * v2) {
   struct S(header) * h = (struct S(header) *) cxt;
-  struct S(pair) * t1 = (struct S(pair) *) v1;
-  struct S(pair) * t2 = (struct S(pair) *) v2;
-  return h->cmp(t1->value->_[0], t2->value->_[0]);
+  tuple::data * t1 = (tuple::data *) v1;
+  tuple::data * t2 = (tuple::data *) v2;
+  return h->cmp(t1->_[0], t2->_[0]);
 }
 
 map::data * mk_e (state::data * st, enum del_policy o[2], 
@@ -120,19 +108,17 @@ uintptr_t size(struct map::data * m) {
 
 void add(map::data * m, void * key, void * value) {
   struct S(header) * b = FIND_HEADER(m);
-  struct S(pair) * triple = (struct S(pair) *) malloc(sizeof(struct S(pair)));
-  triple->h = b;
   
   enum del_policy d[2];
   d[0] = b->key_del_policy;
   d[1] = b->val_del_policy;
   
-  triple->value = tuple::mk_e(b->cs.state, d, key, value);
-  struct S(pair) ** oldp = (struct S(pair) **)musl_tsearch(b, triple, b->_, S(cmp));
+  tuple::data * t = tuple::mk_e(b->cs.state, d, key, value);
+  tuple::data ** oldp = (tuple::data **)musl_tsearch(b, t, b->_, S(cmp));
   if (oldp == NULL)
     segfault(); // run out of memory
-  else if (*oldp != triple) 
-    S(free_pair_follow)(NULL, triple);
+  else if (*oldp != t) 
+    del(t);
   else
     b->size ++;
   return;
@@ -141,13 +127,12 @@ void add(map::data * m, void * key, void * value) {
 void * find(map::data * m, void * key) {
   struct S(header) * b = FIND_HEADER(m);
   tuple::data t = { key, 0 };
-  struct S(pair) keyp = { .value = &t, .h = b };
-  void **oldp = (void **)musl_tfind(b, &keyp, b->_, S(cmp));
+  void **oldp = (void **)musl_tfind(b, &t, b->_, S(cmp));
   if (oldp == NULL)
     return NULL;
   else {
-    struct S(pair) * p = (struct S(pair) *)*oldp;
-    return p->value->_[1];
+    tuple::data * p = (tuple::data *)*oldp;
+    return p->_[1];
   }
 }
 
@@ -158,9 +143,8 @@ void * remove(map::data * m, void * key) {
     return NULL;
   else {
     b->size --;
-    struct S(pair) * t = (struct S(pair) *)*oldp;
-    tuple::data * ret = t->value;
-    S(free_pair_follow)(NULL, t);
+    tuple::data * ret = (tuple::data *)*oldp;
+    del(ret);
     decr_indegree(b->key_del_policy, ret->_[0]);
     decr_indegree(b->val_del_policy, ret->_[1]);
     return ret->_[1];
@@ -168,16 +152,13 @@ void * remove(map::data * m, void * key) {
 }
 
 static void S(get_key) (void * cxt, const void *nodep, const VISIT which, const int depth) {
-  struct S(pair) * p;
-  struct S(header) * h;
-  list::data * keys;
+  tuple::data * p;
   switch (which) 
   {
     case preorder:
     case leaf:
-      p = *(struct S(pair) **)nodep;
-      h = p->h;
-      list::append((list::data **)cxt, p->value->_[0]);
+      p = *(tuple::data **)nodep;
+      list::append((list::data **)cxt, p->_[0]);
       break;
     default:
       break;
@@ -195,16 +176,13 @@ list::data * keys(map::data * m) {
 
 
 static void S(get_value) (void * cxt, const void *nodep, const VISIT which, const int depth) {
-  struct S(pair) * p;
-  struct S(header) * h;
-  list::data * values;
+  tuple::data  * p;
   switch (which) 
   {
     case preorder:
     case leaf:
-      p = (struct S(pair) *)*(void **)nodep;
-      h = p->h;
-      list::append((list::data **)cxt, p->value->_[1]);
+      p = (tuple::data *)*(void **)nodep;
+      list::append((list::data **)cxt, p->_[1]);
       break;
     default:
       break;
