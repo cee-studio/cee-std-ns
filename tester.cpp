@@ -38,7 +38,7 @@ int main () {
   list::append(&list, s1);
   list::append(&list, s2);
   
-  printf("v.size %uz\n", list::size(list));
+  printf("v.size %zu\n", list::size(list));
   int i;
   for (i = 0; i < list::size(list); i++)
     printf ("%d:%s\n", i, (char *)list->_[i]);
@@ -143,7 +143,7 @@ int main () {
   // del(t5);
   printf("t5:%p\n", t5);
   state::add_gc_root(st, t5);
-  printf("%uz\n", set::size(st->roots));
+  printf("%zu\n", set::size(st->roots));
   
   list::data * roots = set::values(st->roots);
   for (i = 0; i < list::size(roots); i++) {
