@@ -25,31 +25,21 @@ struct S(header) {
 };
 
 #include "cee-resize.h"
-    
-struct S(pair) {
-  void * value;
-  struct S(header) * h;
-};
 
-static void S(free_pair_no_follow) (void *cxt, void * c) {
-  free(c);
-}
-    
 static void S(free_pair_follow) (void * cxt, void * c) {
-  struct S(pair) * p = (struct S(pair) *)c;
-  del_e(p->h->del_policy, p->value);
-  free(c);
+  enum del_policy dp = * (enum del_policy *) cxt;
+  del_e(dp, c);
 }
     
 static void S(trace_pair) (void * cxt, const void *nodep, const VISIT which, const int depth) {
-  struct S(pair) * p;
+  void * p;
   struct S(header) * h;
   switch (which) 
   {
     case preorder:
     case leaf:
-      p = (S(pair) *)*(void **)nodep;
-      trace(p->value, *((enum trace_action *)cxt));
+      p = *(void **)nodep;
+      trace(p, *((enum trace_action *)cxt));
       break;
     default:
       break;
@@ -60,7 +50,7 @@ static void S(trace)(void * p, enum trace_action ta) {
   struct S(header) * h = FIND_HEADER (p);
   switch (ta) {
     case trace_del_no_follow:
-      musl_tdestroy(NULL, h->_[0], S(free_pair_no_follow));
+      musl_tdestroy(NULL, h->_[0], NULL);
       S(de_chain)(h);
       free(h);
       break;
@@ -75,16 +65,6 @@ static void S(trace)(void * p, enum trace_action ta) {
       musl_twalk(&ta, h->_[0], S(trace_pair));
       break;
   }
-}
-
-
-static int S(cmp) (const void * v1, const void * v2) {
-  struct S(pair) * t1 = (struct S(pair) *) v1;
-  struct S(pair) * t2 = (struct S(pair) *) v2;
-  if (t1->h == t2->h)
-    return t1->h->cmp(t1->value, t2->value);
-  else
-    segfault();
 }
 
 
@@ -131,15 +111,12 @@ bool empty (set::data * s) {
  */
 void add(set::data *m, void * val) {
   struct S(header) * h = FIND_HEADER(m);
-  struct S(pair) * c = (struct S(pair) *)malloc(sizeof(struct S(pair)));
-  c->value = val;
-  c->h = h;
-  void *** oldp = (void ***) musl_tsearch(c, h->_, S(cmp));
+  void ** oldp = (void **) musl_tsearch(val, h->_, h->cmp);
   
   if (oldp == NULL)
     segfault();
-  else if (*oldp != (void **)c)
-    free(c);
+  else if (*oldp != (void *)val)
+    return;
   else {
     h->size ++;
     incr_indegree(h->del_policy, val);
@@ -169,26 +146,21 @@ void cee_set_clear (set::data * s) {
 
 void * find(set::data *m, void * key) {
   struct S(header) * h = FIND_HEADER(m);
-  struct S(pair) p = { key, h };
-  void ***oldp = (void ***) musl_tfind(&p, h->_, S(cmp));
+  void *oldp = (void *) musl_tfind(key, h->_, h->cmp);
   if (oldp == NULL)
     return NULL;
-  else {
-    void ** t = (void **)*oldp;
-    return t[0];
-  }
+  else
+    return oldp;
 }
 
 static void S(get_value) (void * cxt, const void *nodep, const VISIT which, const int depth) {
-  struct S(pair) * p;
-  struct S(header) * h;
+  void * p;
   switch (which) 
   {
     case preorder:
     case leaf:
-      p = (S(pair) *)*(void **)nodep;
-      h = p->h;
-      list::append((list::data **)cxt, p->value);
+      p = *(void **)nodep;
+      list::append((list::data **)cxt, p);
       break;
     default:
       break;
@@ -206,16 +178,13 @@ list::data * values(set::data * m) {
 
 void * remove(set::data *m, void * key) {
   struct S(header) * h = FIND_HEADER(m);
-  struct S(pair) p = { key, h };
-  void ** old = (void **)musl_tfind(&p, h->_, S(cmp));
+  void ** old = (void **)musl_tfind(key, h->_, h->cmp);
   if (old == NULL)
     return NULL;
   else {
     h->size --;
-    struct S(pair) * x = (struct S(pair) *)*old;
-    void * k = x->value;
-    musl_tdelete(&p, h->_, S(cmp));
-    //free(x);
+    void * k = *old;
+    musl_tdelete(key, h->_, h->cmp);
     return k;
   }
 }
