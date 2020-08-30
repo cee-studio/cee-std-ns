@@ -1,9 +1,12 @@
 #ifdef CEE_AMALGAMATION
+#undef   S
+#define  S(f)  _cee_htable_##f
 #else
-#include "musl-search.h"
 #include <stdlib.h>
 #include <string.h>
+#include "musl-search.h"
 #endif
+
 
 /*
 open addressing hash table with 2^n table size
@@ -25,9 +28,11 @@ struct __tab {
 
 static struct musl_hsearch_data htab;
 
-int musl_hcreate_r(size_t, struct musl_hsearch_data *);
-void musl_hdestroy_r(struct musl_hsearch_data *);
-int musl_hsearch_r(MUSL_ENTRY, ACTION, MUSL_ENTRY **, struct musl_hsearch_data *);
+/*
+static int musl_hcreate_r(size_t, struct musl_hsearch_data *);
+static void musl_hdestroy_r(struct musl_hsearch_data *);
+static int mul_hsearch_r(MUSL_ENTRY, ACTION, MUSL_ENTRY **, struct musl_hsearch_data *);
+*/
 
 static size_t keyhash(char *k)
 {
@@ -50,7 +55,7 @@ static int resize(size_t nel, struct musl_hsearch_data *htab)
 	if (nel > MAXSIZE)
 		nel = MAXSIZE;
 	for (newsize = MINSIZE; newsize < nel; newsize *= 2);
-	htab->__tab->entries = (MUSL_ENTRY *) calloc(newsize, sizeof *htab->__tab->entries);
+	htab->__tab->entries = (MUSL_ENTRY *)calloc(newsize, sizeof *htab->__tab->entries);
 	if (!htab->__tab->entries) {
 		htab->__tab->entries = oldtab;
 		return 0;
@@ -97,7 +102,6 @@ static MUSL_ENTRY *lookup(char *key, size_t hash, struct musl_hsearch_data *htab
 MUSL_ENTRY *musl_hsearch(MUSL_ENTRY item, ACTION action)
 {
 	MUSL_ENTRY *e;
-
 	musl_hsearch_r(item, action, &e, &htab);
 	return e;
 }
@@ -106,7 +110,7 @@ int musl_hcreate_r(size_t nel, struct musl_hsearch_data *htab)
 {
 	int r;
 
-	htab->__tab = (struct __tab *)calloc(1, sizeof *htab->__tab);
+	htab->__tab = (struct __tab *) calloc(1, sizeof *htab->__tab);
 	if (!htab->__tab)
 		return 0;
 	r = resize(nel, htab);
@@ -124,8 +128,8 @@ void musl_hdestroy_r(struct musl_hsearch_data *htab)
 	htab->__tab = 0;
 }
 
-int musl_hsearch_r(MUSL_ENTRY item, ACTION action, 
-                   MUSL_ENTRY **retval, struct musl_hsearch_data *htab)
+int musl_hsearch_r(MUSL_ENTRY item, ACTION action, MUSL_ENTRY **retval, 
+                   struct musl_hsearch_data *htab)
 {
 	size_t hash = keyhash(item.key);
 	MUSL_ENTRY *e = lookup(item.key, hash, htab);

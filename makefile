@@ -1,7 +1,7 @@
 CEE_SRC=cee-common.cpp boxed.cpp str.cpp dict.cpp map.cpp set.cpp stack.cpp \
   tuple.cpp triple.cpp quadruple.cpp list.cpp tagged.cpp singleton.cpp \
   closure.cpp block.cpp n_tuple.cpp env.cpp state.cpp musl-hsearch.c \
-  musl-insque.c musl-lsearch.c musl-tsearch_avl.c
+  musl-insque.c musl-lsearch.c musl-tsearch.c
 
 CXXFLAGS= -fno-rtti -fno-exceptions -g
 
