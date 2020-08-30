@@ -1,10 +1,6 @@
 #ifndef CEE_H
 #define CEE_H
-
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-#include <search.h>
+#include "musl-search.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -361,7 +357,7 @@ namespace dict {
    *
    */
   struct data {
-    struct hsearch_data _;
+    struct musl_hsearch_data _;
   };
 
   /*
@@ -602,4 +598,4 @@ namespace state {
 };
   
 }
-#endif // CEE_H
+#endif

@@ -74,7 +74,7 @@ int main () {
   
   set::remove(set1, str::mk(st, "aabc"));
   p = (char *)set::find(set1, (char *)"aabc");
-  printf ("%s\n", p);
+  printf ("%p\n", p);
   
   list::data * svals = NULL;
   svals = set::values(set1);

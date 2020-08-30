@@ -1,20 +1,13 @@
-#ifndef CEE_ONE
 #define CEE_ONE
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <search.h>
 #include <assert.h>
 #include <errno.h>
 #ifndef CEE_H
 #define CEE_H
-
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-#include <search.h>
+#include "musl-search.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -371,7 +364,7 @@ namespace dict {
    *
    */
   struct data {
-    struct hsearch_data _;
+    struct musl_hsearch_data _;
   };
 
   /*
@@ -612,7 +605,7 @@ namespace state {
 };
   
 }
-#endif // CEE_H 
+#endif 
 #ifndef CEE_INTERNAL_H
 #define CEE_INTERNAL_H
 
@@ -1264,7 +1257,7 @@ struct _cee_dict_header {
   uintptr_t size;
   enum del_policy del_policy;
   struct sect cs;
-  struct hsearch_data _[1];
+  struct musl_hsearch_data _[1];
 };
 static struct _cee_dict_header * _cee_dict_resize(struct _cee_dict_header * h, size_t n)
 {
@@ -1311,14 +1304,14 @@ static void _cee_dict_trace(void *d, enum trace_action ta) {
   struct _cee_dict_header * m = (struct _cee_dict_header *)((void *)((char *)(d) - (__builtin_offsetof(struct _cee_dict_header, _))));
   switch (ta) {
     case trace_del_no_follow:
-      hdestroy_r(m->_);
+      musl_hdestroy_r(m->_);
       _cee_dict_de_chain(m);
       free(m);
       break;
     case trace_del_follow:
       del_e(m->del_policy, m->keys);
       del_e(m->del_policy, m->vals);
-      hdestroy_r(m->_);
+      musl_hdestroy_r(m->_);
       _cee_dict_de_chain(m);
       free(m);
       break;
@@ -1345,8 +1338,8 @@ dict::data * mk_e (state::data * s, enum del_policy o, size_t size) {
   m->cs.resize_method = resize_with_identity;
   m->cs.n_product = 2; // key:str, value
   size_t hsize = (size_t)((float)size * 1.25);
-  memset(m->_, 0, sizeof(struct hsearch_data));
-  if (hcreate_r(hsize, m->_)) {
+  memset(m->_, 0, sizeof(struct musl_hsearch_data));
+  if (musl_hcreate_r(hsize, m->_)) {
     return (dict::data *)(m->_);
   }
   else {
@@ -1361,20 +1354,20 @@ dict::data * mk (state::data *s, size_t size) {
 }
 void add (dict::data * d, char * key, void * value) {
   struct _cee_dict_header * m = (struct _cee_dict_header *)((void *)((char *)(d) - (__builtin_offsetof(struct _cee_dict_header, _))));
-  ENTRY n, *np;
+  MUSL_ENTRY n, *np;
   n.key = key;
   n.data = value;
-  if (!hsearch_r(n, ENTER, &np, m->_))
+  if (!musl_hsearch_r(n, ENTER, &np, m->_))
     segfault();
   append(&m->keys, key);
   append(&m->vals, value);
 }
 void * find(dict::data * d, char * key) {
   struct _cee_dict_header * m = (struct _cee_dict_header *)((void *)((char *)(d) - (__builtin_offsetof(struct _cee_dict_header, _))));
-  ENTRY n, *np;
+  MUSL_ENTRY n, *np;
   n.key = key;
   n.data = NULL;
-  if (hsearch_r(n, FIND, &np, m->_))
+  if (musl_hsearch_r(n, FIND, &np, m->_))
     return np->data;
   printf ("%s\n", strerror(errno));
   return NULL;
@@ -1465,19 +1458,19 @@ static void _cee_map_trace(void * p, enum trace_action ta) {
   struct _cee_map_header * h = (struct _cee_map_header *)((void *)((char *)(p) - (__builtin_offsetof(struct _cee_map_header, _))));
   switch (ta) {
     case trace_del_no_follow:
-      tdestroy(h->_[0], _cee_map_free_pair_no_follow);
+      musl_tdestroy(h->_[0], _cee_map_free_pair_no_follow);
       _cee_map_de_chain(h);
       free(h);
       break;
     case trace_del_follow:
-      tdestroy(h->_[0], _cee_map_free_pair_follow);
+      musl_tdestroy(h->_[0], _cee_map_free_pair_follow);
       _cee_map_de_chain(h);
       free(h);
       break;
     default:
       h->cs.gc_mark = ta - trace_mark;
       h->ta = ta;
-      twalk(h->_[0], _cee_map_trace_pair);
+      musl_twalk(h->_[0], _cee_map_trace_pair);
       break;
   }
 }
@@ -1525,7 +1518,7 @@ void add(map::data * m, void * key, void * value) {
   d[0] = b->key_del_policy;
   d[1] = b->val_del_policy;
   triple->value = tuple::mk_e(b->cs.state, d, key, value);
-  struct _cee_map_pair ** oldp = (struct _cee_map_pair **)tsearch(triple, b->_, _cee_map_cmp);
+  struct _cee_map_pair ** oldp = (struct _cee_map_pair **)musl_tsearch(triple, b->_, _cee_map_cmp);
   if (oldp == NULL)
     segfault(); // run out of memory
   else if (*oldp != triple)
@@ -1538,7 +1531,7 @@ void * find(map::data * m, void * key) {
   struct _cee_map_header * b = (struct _cee_map_header *)((void *)((char *)(m) - (__builtin_offsetof(struct _cee_map_header, _))));
   tuple::data t = { key, 0 };
   struct _cee_map_pair keyp = { .value = &t, .h = b };
-  void **oldp = (void **)tfind(&keyp, b->_, _cee_map_cmp);
+  void **oldp = (void **)musl_tfind(&keyp, b->_, _cee_map_cmp);
   if (oldp == NULL)
     return NULL;
   else {
@@ -1548,7 +1541,7 @@ void * find(map::data * m, void * key) {
 }
 void * remove(map::data * m, void * key) {
   struct _cee_map_header * b = (struct _cee_map_header *)((void *)((char *)(m) - (__builtin_offsetof(struct _cee_map_header, _))));
-  void ** oldp = (void **)tdelete(key, b->_, _cee_map_cmp);
+  void ** oldp = (void **)musl_tdelete(key, b->_, _cee_map_cmp);
   if (oldp == NULL)
     return NULL;
   else {
@@ -1582,7 +1575,7 @@ list::data * keys(map::data * m) {
   struct _cee_map_header * b = (struct _cee_map_header *)((void *)((char *)(m) - (__builtin_offsetof(struct _cee_map_header, _))));
   list::data * keys = list::mk(b->cs.state, n);
   b->context = keys;
-  twalk(b->_[0], _cee_map_get_key);
+  musl_twalk(b->_[0], _cee_map_get_key);
   return keys;
 }
 static void _cee_map_get_value (const void *nodep, const VISIT which, const int depth) {
@@ -1606,7 +1599,7 @@ list::data * values(map::data * m) {
   struct _cee_map_header * b = (struct _cee_map_header *)((void *)((char *)(m) - (__builtin_offsetof(struct _cee_map_header, _))));
   list::data * values = list::mk(b->cs.state, s);
   b->context = values;
-  twalk(b->_[0], _cee_map_get_value);
+  musl_twalk(b->_[0], _cee_map_get_value);
   return values;
 }
   }
@@ -1693,19 +1686,19 @@ static void _cee_set_trace(void * p, enum trace_action ta) {
   struct _cee_set_header * h = (struct _cee_set_header *)((void *)((char *)(p) - (__builtin_offsetof(struct _cee_set_header, _))));
   switch (ta) {
     case trace_del_no_follow:
-      tdestroy(h->_[0], _cee_set_free_pair_no_follow);
+      musl_tdestroy(h->_[0], _cee_set_free_pair_no_follow);
       _cee_set_de_chain(h);
       free(h);
       break;
     case trace_del_follow:
-      tdestroy(h->_[0], _cee_set_free_pair_follow);
+      musl_tdestroy(h->_[0], _cee_set_free_pair_follow);
       _cee_set_de_chain(h);
       free(h);
       break;
     default:
       h->cs.gc_mark = ta - trace_mark;
       h->ta = ta;
-      twalk(h->_[0], _cee_set_trace_pair);
+      musl_twalk(h->_[0], _cee_set_trace_pair);
       break;
   }
 }
@@ -1758,7 +1751,7 @@ void add(set::data *m, void * val) {
   struct _cee_set_pair * c = (struct _cee_set_pair *)malloc(sizeof(struct _cee_set_pair));
   c->value = val;
   c->h = h;
-  void *** oldp = (void ***) tsearch(c, h->_, _cee_set_cmp);
+  void *** oldp = (void ***) musl_tsearch(c, h->_, _cee_set_cmp);
   if (oldp == NULL)
     segfault();
   else if (*oldp != (void **)c)
@@ -1774,22 +1767,22 @@ void cee_set_clear (set::data * s) {
   struct _cee_set_header * h = (struct _cee_set_header *)((void *)((char *)(s) - (__builtin_offsetof(struct _cee_set_header, _))));
   switch(h->del_policy) {
     case dp_del_rc:
-      tdestroy(h->_[0], del_ref);
+      musl_tdestroy(h->_[0], del_ref);
       break;
     case dp_del:
-      tdestroy(h->_[0], del);
+      musl_tdestroy(h->_[0], del);
       break;
     case dp_noop:
-      tdestroy(h->_[0], _cee_set_noop);
+      musl_tdestroy(h->_[0], _cee_set_noop);
       break;
   }
   h->_[0] = NULL;
   h->size = 0;
 }
-void * find(set::data *m, void * value) {
+void * find(set::data *m, void * key) {
   struct _cee_set_header * h = (struct _cee_set_header *)((void *)((char *)(m) - (__builtin_offsetof(struct _cee_set_header, _))));
-  struct _cee_set_pair p = { value, h };
-  void ***oldp = (void ***)tfind(&p, h->_, _cee_set_cmp);
+  struct _cee_set_pair p = { key, h };
+  void ***oldp = (void ***) musl_tfind(&p, h->_, _cee_set_cmp);
   if (oldp == NULL)
     return NULL;
   else {
@@ -1817,19 +1810,21 @@ list::data * values(set::data * m) {
   struct _cee_set_header * h = (struct _cee_set_header *)((void *)((char *)(m) - (__builtin_offsetof(struct _cee_set_header, _))));
   h->context = list::mk(h->cs.state, s);
   use_realloc(h->context);
-  twalk(h->_[0], _cee_set_get_value);
+  musl_twalk(h->_[0], _cee_set_get_value);
   return (list::data *)h->context;
 }
 void * remove(set::data *m, void * key) {
   struct _cee_set_header * h = (struct _cee_set_header *)((void *)((char *)(m) - (__builtin_offsetof(struct _cee_set_header, _))));
-  void ** old = (void **)tdelete(key, h->_, h->cmp);
+  struct _cee_set_pair p = { key, h };
+  void ** old = (void **)musl_tfind(&p, h->_, _cee_set_cmp);
   if (old == NULL)
     return NULL;
   else {
     h->size --;
-    struct _cee_set_pair * p = (struct _cee_set_pair *)*old;
-    void * k = p->value;
-    free(p);
+    struct _cee_set_pair * x = (struct _cee_set_pair *)*old;
+    void * k = x->value;
+    musl_tdelete(&p, h->_, _cee_set_cmp);
+    //free(x);
     return k;
   }
 }
@@ -2934,14 +2929,12 @@ static void _cee_state_sweep (void * v, enum trace_action ta) {
   }
 }
 static int _cee_state_cmp (const void * v1, const void * v2) {
-  intptr_t u1 = (intptr_t) v1;
-  intptr_t u2 = (intptr_t) v2;
-  if (u1 > u2)
+  if (v1 < v2)
     return -1;
-  else if (u1 == u2)
+  else if (v1 == v2)
     return 0;
   else
-    return -1;
+    return 1;
 }
 state::data * mk(size_t n) {
   size_t memblock_size = sizeof(struct _cee_state_header);
@@ -2974,4 +2967,360 @@ void gc (state::data * s) {
 }
   }
 }
-#endif
+/*
+open addressing hash table with 2^n table size
+quadratic probing is used in case of hash collision
+tab indices and hash are size_t
+after resize fails with ENOMEM the state of tab is still usable
+
+with the posix api items cannot be iterated and length cannot be queried
+*/
+struct __tab {
+  MUSL_ENTRY *entries;
+  size_t mask;
+  size_t used;
+};
+static struct musl_hsearch_data htab;
+/*
+static int musl_hcreate_r(size_t, struct musl_hsearch_data *);
+static void musl_hdestroy_r(struct musl_hsearch_data *);
+static int mul_hsearch_r(MUSL_ENTRY, ACTION, MUSL_ENTRY **, struct musl_hsearch_data *);
+*/
+static size_t keyhash(char *k)
+{
+  unsigned char *p = (unsigned char *)k;
+  size_t h = 0;
+  while (*p)
+    h = 31*h + *p++;
+  return h;
+}
+static int resize(size_t nel, struct musl_hsearch_data *htab)
+{
+  size_t newsize;
+  size_t i, j;
+  MUSL_ENTRY *e, *newe;
+  MUSL_ENTRY *oldtab = htab->__tab->entries;
+  MUSL_ENTRY *oldend = htab->__tab->entries + htab->__tab->mask + 1;
+  if (nel > ((size_t)-1/2 + 1))
+    nel = ((size_t)-1/2 + 1);
+  for (newsize = 8; newsize < nel; newsize *= 2);
+  htab->__tab->entries = (MUSL_ENTRY *)calloc(newsize, sizeof *htab->__tab->entries);
+  if (!htab->__tab->entries) {
+    htab->__tab->entries = oldtab;
+    return 0;
+  }
+  htab->__tab->mask = newsize - 1;
+  if (!oldtab)
+    return 1;
+  for (e = oldtab; e < oldend; e++)
+    if (e->key) {
+      for (i=keyhash(e->key),j=1; ; i+=j++) {
+        newe = htab->__tab->entries + (i & htab->__tab->mask);
+        if (!newe->key)
+          break;
+      }
+      *newe = *e;
+    }
+  free(oldtab);
+  return 1;
+}
+int musl_hcreate(size_t nel)
+{
+  return musl_hcreate_r(nel, &htab);
+}
+void musl_hdestroy(void)
+{
+  musl_hdestroy_r(&htab);
+}
+static MUSL_ENTRY *lookup(char *key, size_t hash, struct musl_hsearch_data *htab)
+{
+  size_t i, j;
+  MUSL_ENTRY *e;
+  for (i=hash,j=1; ; i+=j++) {
+    e = htab->__tab->entries + (i & htab->__tab->mask);
+    if (!e->key || strcmp(e->key, key) == 0)
+      break;
+  }
+  return e;
+}
+MUSL_ENTRY *musl_hsearch(MUSL_ENTRY item, ACTION action)
+{
+  MUSL_ENTRY *e;
+  musl_hsearch_r(item, action, &e, &htab);
+  return e;
+}
+int musl_hcreate_r(size_t nel, struct musl_hsearch_data *htab)
+{
+  int r;
+  htab->__tab = (struct __tab *) calloc(1, sizeof *htab->__tab);
+  if (!htab->__tab)
+    return 0;
+  r = resize(nel, htab);
+  if (r == 0) {
+    free(htab->__tab);
+    htab->__tab = 0;
+  }
+  return r;
+}
+void musl_hdestroy_r(struct musl_hsearch_data *htab)
+{
+  if (htab->__tab) free(htab->__tab->entries);
+  free(htab->__tab);
+  htab->__tab = 0;
+}
+int musl_hsearch_r(MUSL_ENTRY item, ACTION action, MUSL_ENTRY **retval,
+                   struct musl_hsearch_data *htab)
+{
+  size_t hash = keyhash(item.key);
+  MUSL_ENTRY *e = lookup(item.key, hash, htab);
+  if (e->key) {
+    *retval = e;
+    return 1;
+  }
+  if (action == FIND) {
+    *retval = 0;
+    return 0;
+  }
+  *e = item;
+  if (++htab->__tab->used > htab->__tab->mask - htab->__tab->mask/4) {
+    if (!resize(2*htab->__tab->used, htab)) {
+      htab->__tab->used--;
+      e->key = 0;
+      *retval = 0;
+      return 0;
+    }
+    e = lookup(item.key, hash, htab);
+  }
+  *retval = e;
+  return 1;
+}
+struct _musl_lsearch__node {
+  struct _musl_lsearch__node *next;
+  struct _musl_lsearch__node *prev;
+};
+void musl_insque(void *element, void *pred)
+{
+  struct _musl_lsearch__node *e = (struct _musl_lsearch__node *)element;
+  struct _musl_lsearch__node *p = (struct _musl_lsearch__node *)pred;
+  if (!p) {
+    e->next = e->prev = 0;
+    return;
+  }
+  e->next = p->next;
+  e->prev = p;
+  p->next = e;
+  if (e->next)
+    e->next->prev = e;
+}
+void musl_remque(void *element)
+{
+  struct _musl_lsearch__node *e = (struct _musl_lsearch__node *)element;
+  if (e->next)
+    e->next->prev = e->prev;
+  if (e->prev)
+    e->prev->next = e->next;
+}
+void *musl_lsearch(const void *key, void *base, size_t *nelp, size_t width,
+  int (*compar)(const void *, const void *))
+{
+  char **p = (char **)base;
+  size_t n = *nelp;
+  size_t i;
+  for (i = 0; i < n; i++)
+    if (compar(p[i], key) == 0)
+      return p[i];
+  *nelp = n+1;
+  // b.o. here when width is longer than the size of key
+  return memcpy(p[n], key, width);
+}
+void *musl_lfind(const void *key, const void *base, size_t *nelp,
+  size_t width, int (*compar)(const void *, const void *))
+{
+  char **p = (char **)base;
+  size_t n = *nelp;
+  size_t i;
+  for (i = 0; i < n; i++)
+    if (compar(p[i], key) == 0)
+      return p[i];
+  return 0;
+}
+/* AVL tree height < 1.44*log2(nodes+2)-0.3, MAXH is a safe upper bound.  */
+struct _cee_tsearch_node {
+  const void *key;
+  void *a[2];
+  int h;
+};
+static int height(void *n) { return n ? ((struct _cee_tsearch_node *)n)->h : 0; }
+static int rot(void **p, struct _cee_tsearch_node *x, int dir /* deeper side */)
+{
+  struct _cee_tsearch_node *y = (struct _cee_tsearch_node *)x->a[dir];
+  struct _cee_tsearch_node *z = (struct _cee_tsearch_node *)y->a[!dir];
+  int hx = x->h;
+  int hz = height(z);
+  if (hz > height(y->a[dir])) {
+    /*
+     *   x
+     *  / \ dir          z
+     * A   y            /      *    / \   -->    x   y
+y
+     *   z   D        /|   |     *  / \          A B   C D
+D
+     * B   C
+     */
+    x->a[dir] = z->a[!dir];
+    y->a[!dir] = z->a[dir];
+    z->a[!dir] = x;
+    z->a[dir] = y;
+    x->h = hz;
+    y->h = hz;
+    z->h = hz+1;
+  } else {
+    /*
+     *   x               y
+     *  / \             /      * A   y    -->    x   D
+D
+     *    / \         /      *   z   D       A   z
+z
+     */
+    x->a[dir] = z;
+    y->a[!dir] = x;
+    x->h = hz+1;
+    y->h = hz+2;
+    z = y;
+  }
+  *p = z;
+  return z->h - hx;
+}
+/* balance *p, return 0 if height is unchanged.  */
+static int __tsearch_balance(void **p)
+{
+  struct _cee_tsearch_node *n = (struct _cee_tsearch_node *)*p;
+  int h0 = height(n->a[0]);
+  int h1 = height(n->a[1]);
+  if (h0 - h1 + 1u < 3u) {
+    int old = n->h;
+    n->h = h0<h1 ? h1+1 : h0+1;
+    return n->h - old;
+  }
+  return rot(p, n, h0<h1);
+}
+void *musl_tsearch(const void *key, void **rootp,
+  int (*cmp)(const void *, const void *))
+{
+  if (!rootp)
+    return 0;
+  void **a[(sizeof(void*)*8*3/2)];
+  struct _cee_tsearch_node *n = (struct _cee_tsearch_node *)*rootp;
+  struct _cee_tsearch_node *r;
+  int i=0;
+  a[i++] = rootp;
+  for (;;) {
+    if (!n)
+      break;
+    int c = cmp(key, n->key);
+    if (!c)
+      return n;
+    a[i++] = &n->a[c>0];
+    n = (struct _cee_tsearch_node *)n->a[c>0];
+  }
+  r = (struct _cee_tsearch_node *)malloc(sizeof *r);
+  if (!r)
+    return 0;
+  r->key = key;
+  r->a[0] = r->a[1] = 0;
+  r->h = 1;
+  /* insert new node, rebalance ancestors.  */
+  *a[--i] = r;
+  while (i && __tsearch_balance(a[--i]));
+  return r;
+}
+void musl_tdestroy(void *root, void (*freekey)(void *))
+{
+  struct _cee_tsearch_node *r = (struct _cee_tsearch_node *)root;
+  if (r == 0)
+    return;
+  musl_tdestroy(r->a[0], freekey);
+  musl_tdestroy(r->a[1], freekey);
+  if (freekey) freekey((void *)r->key);
+  free(r);
+}
+void *musl_tfind(const void *key, void *const *rootp,
+  int(*cmp)(const void *, const void *))
+{
+  if (!rootp)
+    return 0;
+  struct _cee_tsearch_node *n = (struct _cee_tsearch_node *)*rootp;
+  for (;;) {
+    if (!n)
+      break;
+    int c = cmp(key, n->key);
+    if (!c)
+      break;
+    n = (struct _cee_tsearch_node *)n->a[c>0];
+  }
+  return n;
+}
+static void walk(struct _cee_tsearch_node *r, void (*action)(const void *, VISIT, int), int d)
+{
+  if (!r)
+    return;
+  if (r->h == 1)
+    action(r, leaf, d);
+  else {
+    action(r, preorder, d);
+    walk((struct _cee_tsearch_node *)r->a[0], action, d+1);
+    action(r, postorder, d);
+    walk((struct _cee_tsearch_node *)r->a[1], action, d+1);
+    action(r, endorder, d);
+  }
+}
+void musl_twalk(const void *root, void (*action)(const void *, VISIT, int))
+{
+  walk((struct _cee_tsearch_node *)root, action, 0);
+}
+void *musl_tdelete(const void * key, void ** rootp,
+  int(*cmp)(const void *, const void *))
+{
+  if (!rootp)
+    return 0;
+  void **a[(sizeof(void*)*8*3/2)+1];
+  struct _cee_tsearch_node *n = (struct _cee_tsearch_node *)*rootp;
+  struct _cee_tsearch_node *parent;
+  struct _cee_tsearch_node *child;
+  int i=0;
+  /* *a[0] is an arbitrary non-null pointer that is returned when
+     the root node is deleted.  */
+  a[i++] = rootp;
+  a[i++] = rootp;
+  for (;;) {
+    if (!n)
+      return 0;
+    int c = cmp(key, n->key);
+    if (!c)
+      break;
+    a[i++] = &n->a[c>0];
+    n = (struct _cee_tsearch_node *)n->a[c>0];
+  }
+  parent = (struct _cee_tsearch_node *)*a[i-2];
+  if (n->a[0]) {
+    /* free the preceding node instead of the deleted one.  */
+    struct _cee_tsearch_node *deleted = n;
+    a[i++] = &n->a[0];
+    n = (struct _cee_tsearch_node *)n->a[0];
+    while (n->a[1]) {
+      a[i++] = &n->a[1];
+      n = (struct _cee_tsearch_node *)n->a[1];
+    }
+    deleted->key = n->key;
+    child = (struct _cee_tsearch_node *)n->a[0];
+  } else {
+    child = (struct _cee_tsearch_node *)n->a[1];
+  }
+  /* freed node has at most one child, move it up and rebalance.  */
+  if (parent == n)
+    parent = NULL;
+  free(n);
+  *a[--i] = child;
+  while (--i && __tsearch_balance(a[i]));
+  return parent;
+}
